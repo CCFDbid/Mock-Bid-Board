@@ -1,0 +1,1108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CCFD Mock Bid Board</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+  :root{
+    --bg:#0e1113; --panel:#171b1e; --panel-2:#1f2427; --line:#2c3236; --line-soft:#1a1f24;
+    --amber:#f2a71b; --red:#c8362c; --teal:#2f9c95; --blue:#4f83c2; --green:#3fae5a; --violet:#9b7fc7;
+    --role-capt:#ff6f61; --role-medic:#4fb0ff; --role-ff:#f3c84e;
+    --text:#e8e6df; --text-dim:#8b9195; --slot-empty:#14181a; --codes:#5f666b;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);
+    font-family:'Oswald',sans-serif;height:100%;overflow:hidden;}
+  body{display:flex;flex-direction:column;}
+  body.dragging-active{user-select:none;cursor:grabbing;}
+
+  /* ---- TOP BAR ---- */
+  #topbar{display:flex;align-items:center;justify-content:space-between;gap:14px;
+    padding:11px 20px;background:var(--panel);border-bottom:3px solid var(--amber);
+    flex-shrink:0;z-index:60;flex-wrap:wrap;}
+  #topbar h1{margin:0;font-size:22px;letter-spacing:2px;font-weight:700;}
+  #topbar h1 span{color:var(--amber);}
+  #topbar .sub{color:var(--text-dim);font-size:11px;letter-spacing:1px;margin-top:2px;}
+  .btnRow{display:flex;gap:6px;flex-wrap:wrap;align-items:center;}
+  .btn{border:none;padding:9px 13px;font-family:'Oswald';font-weight:600;letter-spacing:1px;
+    font-size:13px;border-radius:3px;cursor:pointer;text-transform:uppercase;color:#fff;}
+  .btn.ghost{background:var(--panel-2);color:var(--text);border:1px solid var(--line);}
+  .btn.ghost:hover{background:var(--line);}
+  .btn.ghost:disabled{opacity:.32;cursor:default;background:var(--panel-2);}
+  .btn.reset{background:var(--red);} .btn.reset:hover{background:#e04236;}
+  .btn.save{background:var(--teal);} .btn.load{background:var(--blue);} .btn.edit{background:var(--amber);color:#161616;}
+  .zoomGroup{display:flex;align-items:center;gap:2px;background:var(--panel-2);border:1px solid var(--line);border-radius:4px;padding:2px;}
+  .zoomGroup button{background:none;border:none;color:var(--text);font-family:'Oswald';font-weight:700;
+    font-size:17px;cursor:pointer;padding:3px 10px;line-height:1;border-radius:3px;}
+  .zoomGroup button:hover{background:var(--line);}
+  .zoomGroup .zlabel{font-family:'JetBrains Mono';font-size:12px;color:var(--text-dim);min-width:40px;text-align:center;}
+  .menuWrap{position:relative;}
+  .menuDrop{position:absolute;right:0;top:calc(100% + 6px);background:var(--panel);border:1px solid var(--line);
+    border-radius:6px;box-shadow:0 8px 24px rgba(0,0,0,.5);display:none;flex-direction:column;min-width:160px;z-index:80;overflow:hidden;}
+  .menuDrop.open{display:flex;}
+  .menuDrop button{background:none;border:none;color:var(--text);text-align:left;padding:11px 15px;
+    font-family:'Oswald';font-size:13px;letter-spacing:.5px;cursor:pointer;text-transform:uppercase;}
+  .menuDrop button:hover{background:var(--panel-2);}
+
+  /* ---- STATUS BAR ---- */
+  #statusBar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-shrink:0;
+    padding:6px 20px;background:var(--panel-2);border-bottom:1px solid var(--line);z-index:55;}
+  #statusBar .sInfo{display:flex;align-items:baseline;gap:9px;min-width:0;}
+  #statusBar #statusLabel{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--text-dim);white-space:nowrap;}
+  #statusBar #statusName{font-family:'JetBrains Mono';font-size:14px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  #statusBar.placing{background:rgba(242,167,27,.14);border-bottom-color:var(--amber);}
+  #statusBar.placing #statusLabel{color:var(--amber);}
+  #statusCancel{background:#161616;color:var(--amber);border:1px solid var(--amber);padding:4px 10px;border-radius:4px;
+    font-family:'Oswald';font-weight:600;cursor:pointer;letter-spacing:1px;text-transform:uppercase;font-size:10px;display:none;flex-shrink:0;}
+
+  /* ---- LAYOUT ---- */
+  #main{flex:1;display:flex;min-height:0;}
+  #poolWrap{width:288px;min-width:288px;background:var(--panel);border-right:3px solid var(--line);
+    height:100%;overflow:hidden;display:flex;flex-direction:column;z-index:40;}
+  #poolWrap.collapsed{width:0;min-width:0;border-right:none;overflow:hidden;}
+  #poolHeader{padding:12px 16px 4px;border-bottom:2px solid var(--line);}
+  #poolHeader .label{font-size:12px;letter-spacing:2px;color:var(--amber);text-transform:uppercase;font-weight:600;}
+  #poolCount{font-family:'JetBrains Mono';font-size:11px;color:var(--text-dim);margin-top:2px;}
+  #poolSearch{margin:10px 16px 6px;padding:8px 10px;width:calc(100% - 32px);background:var(--panel-2);
+    border:1px solid var(--line);border-radius:3px;color:var(--text);font-family:'JetBrains Mono';font-size:13px;}
+  #filterRow{display:flex;gap:5px;padding:0 16px 6px;flex-wrap:wrap;}
+  .filterBtn{background:var(--panel-2);border:1px solid var(--line);color:var(--text-dim);font-family:'Oswald';
+    font-size:11px;font-weight:600;letter-spacing:1px;padding:4px 10px;border-radius:3px;cursor:pointer;text-transform:uppercase;}
+  .filterBtn.active{background:var(--amber);color:#161616;border-color:var(--amber);}
+  #viewHint{display:none;padding:0 16px 8px;font-size:11px;color:var(--text-dim);font-style:italic;}
+  #pool{overflow-y:auto;-webkit-overflow-scrolling:touch;padding:4px 12px 40px;flex:1;display:flex;flex-direction:column;gap:5px;}
+
+  #boardArea{flex:1;min-width:0;height:100%;overflow:auto;-webkit-overflow-scrolling:touch;}
+  #boardZoom{width:max-content;min-width:100%;transform-origin:top left;}
+
+  .chip{background:var(--panel-2);border:1px solid var(--line);padding:7px 8px;border-radius:3px;
+    font-family:'JetBrains Mono';font-size:13px;font-weight:500;color:var(--text);display:flex;align-items:center;gap:5px;white-space:nowrap;}
+  .chip .chipName{flex:1;overflow:hidden;text-overflow:ellipsis;}
+  .chip .tag{font-size:9px;color:var(--text-dim);letter-spacing:1px;}
+  .chip.dragging{opacity:.3;}
+  .chip.onclock{border-color:var(--amber);background:rgba(242,167,27,.12);}
+  .codes{font-family:'JetBrains Mono';font-size:10px;color:var(--codes);letter-spacing:.5px;margin-left:6px;}
+  .pmstar{color:var(--amber);font-weight:700;}
+  .rdot{font-size:9px;margin-right:5px;line-height:1;}
+  .role-capt{color:var(--role-capt);} .role-medic{color:var(--role-medic);}
+  .role-ff{color:var(--role-ff);} .role-bc{color:var(--text-dim);}
+
+  .chip, .slot{touch-action:pan-y;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;}
+  .grip{display:flex;align-items:center;justify-content:center;min-width:32px;align-self:stretch;
+    color:var(--text-dim);cursor:grab;font-size:16px;line-height:1;letter-spacing:-3px;
+    background:rgba(255,255,255,.05);border-radius:3px;touch-action:none;flex-shrink:0;}
+  .grip:active{cursor:grabbing;}
+  .modal textarea, .modal input{-webkit-user-select:text;user-select:text;}
+  .chip.selected, .slot.selected{outline:2px solid var(--amber);outline-offset:1px;box-shadow:0 0 0 3px rgba(242,167,27,.25);}
+
+  /* ---- BOARD ---- */
+  #board{display:flex;}
+  .shiftCol{flex:1;min-width:396px;border-right:2px solid var(--line);padding:16px 16px 30px;}
+  .shiftCol:last-child{border-right:none;}
+  .shiftHead{display:flex;align-items:baseline;gap:10px;margin-bottom:8px;padding-bottom:8px;border-bottom:3px solid;}
+  .shiftCol[data-shift="A"] .shiftHead{border-color:var(--red);}
+  .shiftCol[data-shift="B"] .shiftHead{border-color:var(--blue);}
+  .shiftCol[data-shift="C"] .shiftHead{border-color:var(--green);}
+  .shiftHead .letter{font-size:32px;font-weight:700;line-height:1;}
+  .shiftCol[data-shift="A"] .letter{color:var(--red);}
+  .shiftCol[data-shift="B"] .letter{color:var(--blue);}
+  .shiftCol[data-shift="C"] .letter{color:var(--green);}
+  .shiftHead .name{font-size:13px;letter-spacing:1px;color:var(--text-dim);text-transform:uppercase;white-space:nowrap;}
+  .shiftHead .name .codes{font-size:9px;}
+
+  .counter{display:flex;gap:15px;margin-bottom:14px;font-size:12px;color:var(--text-dim);letter-spacing:.5px;flex-wrap:wrap;}
+  .counter b{font-family:'JetBrains Mono';font-size:15px;font-weight:700;margin-left:3px;}
+  .c-pm b{color:var(--role-medic);} .c-rs b{color:var(--red);} .c-ac b{color:var(--amber);} .c-open b{color:var(--text);}
+
+  .stationBlock{margin-bottom:18px;padding-bottom:2px;}
+  .stationTitle{font-size:14px;font-weight:600;letter-spacing:1.5px;color:var(--text);text-transform:uppercase;margin-bottom:7px;white-space:nowrap;}
+  .stationTitle.understaffed::after{content:'●';color:var(--red);font-size:9px;margin-left:7px;vertical-align:middle;}
+
+  .slot{background:var(--slot-empty);border:1px solid var(--line);border-radius:4px;padding:7px 10px;margin-bottom:5px;
+    min-height:34px;display:flex;align-items:center;gap:6px;transition:border-color .1s, background .35s;}
+  .slot.filled{background:var(--panel-2);border-color:var(--line);}
+  .slot.dragover{border-color:var(--amber)!important;background:#26221080;}
+  .slot .slotLabel{font-size:11px;letter-spacing:1px;color:var(--text-dim);text-transform:uppercase;min-width:112px;flex-shrink:0;}
+  .slot .slotName{flex:1;font-family:'JetBrains Mono';font-size:13px;font-weight:500;text-align:right;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .slot .slotName.empty{color:var(--text-dim);opacity:.5;font-style:italic;}
+  .slot .grip{display:none;}
+  .slot.filled .grip{display:flex;}
+  .slot .clearBtn{background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:13px;padding:0 2px;display:none;}
+  .slot.filled .clearBtn{display:inline-block;}
+  .slot.filled .clearBtn:hover{color:var(--red);}
+  @keyframes slotFlash{0%{background:rgba(242,167,27,.55);}100%{background:var(--panel-2);}}
+  .slot.flash{animation:slotFlash .7s ease-out;}
+
+  /* ---- FOOTER ---- */
+  #footer{display:flex;border-top:3px solid var(--amber);margin-top:8px;}
+  .footBlock{padding:16px 20px 22px;}
+  .footBlock.offshift{flex:1;max-width:560px;}
+  .footTitle{font-size:13px;font-weight:600;letter-spacing:2px;color:var(--amber);text-transform:uppercase;margin-bottom:10px;}
+  .subhead{font-size:11px;color:var(--text-dim);letter-spacing:1.5px;text-transform:uppercase;margin:16px 0 6px;}
+
+  /* ---- BOTTOM INFO ---- */
+  #bottomInfo{display:flex;gap:40px;flex-wrap:wrap;border-top:1px solid var(--line);padding:10px 20px 60px;}
+  .infoToggle{cursor:pointer;font-size:12px;letter-spacing:2px;color:var(--text-dim);text-transform:uppercase;
+    font-weight:600;user-select:none;display:inline-flex;align-items:center;gap:6px;}
+  .infoToggle:hover{color:var(--amber);}
+  .infoContent{display:none;margin-top:12px;}
+  .infoContent.open{display:block;}
+  .legRow{font-size:12px;color:var(--text-dim);padding:3px 0;line-height:1.5;}
+  .legRow b{color:var(--text);}
+  .holGroup{margin-bottom:12px;break-inside:avoid;}
+  .holGroupTitle{font-size:12px;font-weight:700;letter-spacing:1px;margin-bottom:4px;}
+  .holGroupTitle.s-A{color:var(--red);} .holGroupTitle.s-B{color:var(--blue);} .holGroupTitle.s-C{color:var(--green);}
+  .hrow{display:flex;align-items:baseline;gap:8px;padding:2px 0;font-size:12px;font-family:'JetBrains Mono';}
+  .hdate{color:var(--text-dim);min-width:74px;flex-shrink:0;} .hname{color:var(--text);}
+  #holWrap{columns:2;column-gap:36px;max-width:720px;}
+
+  /* ---- GHOST + TOAST ---- */
+  .dragGhost{position:fixed;z-index:9999;pointer-events:none;background:var(--amber);color:#161616;
+    font-family:'JetBrains Mono';font-size:13px;font-weight:700;padding:6px 12px;border-radius:4px;box-shadow:0 6px 18px rgba(0,0,0,.5);letter-spacing:.5px;}
+  #toast{position:fixed;top:104px;left:50%;transform:translateX(-50%);background:var(--red);color:#fff;
+    font-family:'Oswald';font-weight:600;font-size:13px;letter-spacing:.4px;padding:9px 16px;border-radius:6px;
+    box-shadow:0 6px 20px rgba(0,0,0,.5);z-index:300;opacity:0;pointer-events:none;transition:opacity .2s;max-width:min(90vw,520px);text-align:center;}
+  #toast.show{opacity:1;}
+  #toast.info{background:var(--amber);color:#161616;}
+  #toast.error{background:var(--red);color:#fff;}
+
+  /* ---- MODALS ---- */
+  .overlay{position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:200;display:none;align-items:center;justify-content:center;padding:20px;}
+  .overlay.open{display:flex;}
+  .modal{background:var(--panel);border:1px solid var(--line);border-top:4px solid var(--amber);border-radius:6px;
+    width:min(560px,100%);max-height:85vh;overflow-y:auto;padding:22px;}
+  .modal h2{margin:0 0 4px;font-size:20px;letter-spacing:1px;}
+  .modal p.hint{color:var(--text-dim);font-size:13px;margin:0 0 14px;line-height:1.5;}
+  .modal textarea{width:100%;height:150px;background:var(--panel-2);border:1px solid var(--line);border-radius:4px;
+    color:var(--text);font-family:'JetBrains Mono';font-size:12px;padding:10px;resize:vertical;}
+  .modal .row{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;align-items:center;}
+  .modal input[type=text], .modal select{background:var(--panel-2);border:1px solid var(--line);border-radius:4px;
+    color:var(--text);font-family:'JetBrains Mono';font-size:13px;padding:8px 10px;}
+  .modal input[type=text]{flex:1;min-width:140px;}
+  #rosterList{margin-top:14px;border-top:1px solid var(--line);max-height:280px;overflow-y:auto;}
+  .rItem{display:flex;align-items:center;gap:8px;padding:7px 2px;border-bottom:1px solid var(--line);font-family:'JetBrains Mono';font-size:13px;}
+  .rItem .rName{flex:1;} .rItem .rRank{font-size:10px;letter-spacing:1px;color:var(--text-dim);border:1px solid var(--line);padding:1px 6px;border-radius:3px;}
+  .rItem .rDel{background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:14px;} .rItem .rDel:hover{color:var(--red);}
+  input[type=file]{color:var(--text-dim);font-size:12px;}
+
+  ::-webkit-scrollbar{width:11px;height:11px;}
+  ::-webkit-scrollbar-track{background:var(--panel);}
+  ::-webkit-scrollbar-thumb{background:var(--line);border-radius:5px;}
+
+  /* ---- PHONE MODE ---- */
+  #phoneTabs{display:none;}
+  #drawerBtn{display:none;}
+  body.phone #phoneTabs{display:flex;position:sticky;top:0;z-index:35;background:var(--panel);border-bottom:2px solid var(--line);padding:6px;gap:6px;}
+  body.phone #phoneTabs button{flex:1;padding:11px;font-family:'Oswald';font-weight:700;font-size:19px;background:var(--panel-2);
+    border:1px solid var(--line);border-radius:5px;color:var(--text-dim);cursor:pointer;}
+  body.phone #phoneTabs button.active[data-s="A"]{color:#fff;background:var(--red);border-color:var(--red);}
+  body.phone #phoneTabs button.active[data-s="B"]{color:#fff;background:var(--blue);border-color:var(--blue);}
+  body.phone #phoneTabs button.active[data-s="C"]{color:#fff;background:var(--green);border-color:var(--green);}
+  body.phone #board{display:block;}
+  body.phone #boardZoom{width:100%;zoom:1 !important;}
+  body.phone .shiftCol{display:none;min-width:0;width:100%;border-right:none;padding:14px 14px 24px;}
+  body.phone .shiftCol.active-shift{display:block;}
+  body.phone #footer{display:block;}
+  body.phone .footBlock.offshift{max-width:100%;}
+  body.phone #bottomInfo{display:block;padding-bottom:96px;}
+  body.phone #poolWrap{position:static;width:0;min-width:0;flex-shrink:0;height:100%;order:2;overflow:hidden;
+    border-right:none;border-left:none;transition:width .2s ease;z-index:40;}
+  body.phone #poolWrap.open{width:52vw;min-width:220px;border-left:3px solid var(--amber);}
+  body.phone #boardArea{order:1;}
+  body.phone #pool{padding-bottom:56px;gap:4px;}
+  body.phone .grip{min-width:26px;}
+  body.phone #drawerBtn{display:block;position:fixed;left:0;right:0;bottom:0;height:42px;z-index:130;background:var(--amber);
+    color:#161616;border:none;font-family:'Oswald';font-weight:700;font-size:14px;letter-spacing:1px;text-transform:uppercase;cursor:pointer;}
+  body.phone .zoomGroup,body.phone #fitBtn,body.phone #rosterToggle{display:none;}
+  body.phone #phoneTabs button{padding:8px;font-size:17px;}
+  body.phone .slot{min-height:38px;padding:6px 8px;margin-bottom:4px;}
+  body.phone .slot .slotName{font-size:13px;}
+  body.phone .slot .slotLabel{font-size:10px;min-width:76px;letter-spacing:.4px;}
+  body.phone .chip{font-size:13px;padding:7px 6px;}
+  body.phone .stationTitle{font-size:14px;margin-bottom:5px;}
+  body.phone .stationBlock{margin-bottom:12px;}
+  body.phone .counter{font-size:12px;gap:10px;}
+  body.phone .counter b{font-size:14px;}
+
+  @media print{
+    #topbar,#statusBar,#poolWrap,#toast,.overlay,#phoneTabs,#drawerBtn{display:none !important;}
+    html,body{height:auto;overflow:visible;background:#fff;color:#000;}
+    #main{display:block;height:auto;} #boardArea{overflow:visible;height:auto;}
+    #boardZoom{zoom:1 !important;width:auto;} #board{display:block;}
+    .shiftCol{min-width:0;width:100%;border:none;border-bottom:2px solid #000;page-break-inside:avoid;padding:10px 0;display:block !important;}
+    .shiftHead .name{color:#000;} .slot{background:#fff;border:1px solid #999;} .slot .slotName.empty{color:#888;}
+    .codes{color:#555;} .counter{color:#000;}
+    .role-capt{color:#b83227 !important;} .role-medic{color:#1f6fb2 !important;} .role-ff{color:#9a7d0a !important;} .role-bc{color:#000 !important;}
+    #bottomInfo{display:block !important;} #bottomInfo .infoContent{display:block !important;} #footer,#bottomInfo{border-color:#999;}
+  }
+</style>
+</head>
+<body>
+
+<div id="topbar">
+  <div>
+    <h1>CCFD MOCK <span>BID BOARD</span></h1>
+    <div class="sub">Tap a seat to place the person on the clock · roster stays left · Fit / zoom / Phone view to resize</div>
+  </div>
+  <div class="btnRow">
+    <div class="zoomGroup" id="zoomGroup">
+      <button onclick="zoomStep(-0.1)" title="Zoom out">−</button>
+      <span class="zlabel" id="zlabel">100%</span>
+      <button onclick="zoomStep(0.1)" title="Zoom in">+</button>
+    </div>
+    <button class="btn ghost" id="fitBtn" onclick="fitBoard()">Fit</button>
+    <button class="btn ghost" id="undoBtn" onclick="undo()" title="Undo">↶</button>
+    <button class="btn ghost" id="redoBtn" onclick="redo()" title="Redo">↷</button>
+    <button class="btn ghost" id="rosterToggle" onclick="toggleRoster()">Hide Roster</button>
+    <button class="btn ghost" id="layoutBtn" onclick="toggleLayout()">Phone View</button>
+    <div class="menuWrap">
+      <button class="btn ghost" onclick="toggleMenu()" title="More">⋯ Menu</button>
+      <div id="menuDrop" class="menuDrop">
+        <button id="balanceBtn" onclick="toggleBalance()">Balance Paramedics: Off</button>
+        <button onclick="openSave();closeMenu()">Save Bid</button>
+        <button onclick="openLoad();closeMenu()">Load Bid</button>
+        <button onclick="window.print();closeMenu()">Print</button>
+        <button onclick="openRoster();closeMenu()">Edit Roster</button>
+        <button onclick="resetBoard();closeMenu()">Reset Board</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="statusBar">
+  <div class="sInfo"><span id="statusLabel">On the clock</span><span id="statusName">—</span></div>
+  <button id="statusCancel" onclick="cancelSelection()">Cancel</button>
+</div>
+
+<div id="main">
+  <div id="poolWrap">
+    <div id="poolHeader">
+      <div class="label">Available Roster</div>
+      <div id="poolCount"></div>
+    </div>
+    <input id="poolSearch" placeholder="Search name..." oninput="renderPool()">
+    <div id="filterRow">
+      <button class="filterBtn active" data-f="all" onclick="setFilter('all')">All</button>
+      <button class="filterBtn" data-f="PM" onclick="setFilter('PM')">PM</button>
+      <button class="filterBtn" data-f="RS" onclick="setFilter('RS')">RS</button>
+      <button class="filterBtn" data-f="AC" onclick="setFilter('AC')">AC</button>
+    </div>
+    <div id="viewHint">Viewing only — switch to All to place people.</div>
+    <div id="pool"></div>
+  </div>
+
+  <div id="boardArea">
+    <div id="phoneTabs">
+      <button data-s="A" class="active" onclick="setPhoneShift('A')">A</button>
+      <button data-s="B" onclick="setPhoneShift('B')">B</button>
+      <button data-s="C" onclick="setPhoneShift('C')">C</button>
+    </div>
+    <div id="boardZoom">
+      <div id="board"></div>
+      <div id="footer"></div>
+      <div id="bottomInfo">
+        <div>
+          <div class="infoToggle" onclick="toggleInfo('legendList','legendArrow')"><span id="legendArrow">▸</span> Legend</div>
+          <div id="legendList" class="infoContent">
+            <div class="legRow"><span class="rdot role-capt">●</span> Captain (red)</div>
+            <div class="legRow"><span class="rdot role-medic">●</span> Paramedic (blue) — any firefighter with PM</div>
+            <div class="legRow"><span class="rdot role-ff">●</span> Firefighter (yellow)</div>
+            <div class="legRow"><span class="codes">PM<span class="pmstar">*</span></span> — medic in a Captain seat; still <b>not</b> counted in that shift's PM total</div>
+            <div class="legRow">Red dot after a station name — that rig has no paramedic assigned</div>
+            <div class="legRow">Per-shift counts: <b>PM</b> (excludes Capt seat) · <b>RS</b> · <b>AC</b> · <b>Open</b> seats</div>
+          </div>
+        </div>
+        <div>
+          <div class="infoToggle" onclick="toggleInfo('holList','holArrow')"><span id="holArrow">▸</span> Holidays 2027</div>
+          <div id="holList" class="infoContent"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<button id="drawerBtn" onclick="toggleDrawer()">☰ Show Roster</button>
+<div id="toast"></div>
+
+<div class="overlay" id="confirmOverlay">
+  <div class="modal">
+    <h2>Reset board?</h2>
+    <p class="hint">This clears every name off the board. Your roster stays as-is.</p>
+    <div class="row">
+      <button class="btn reset" onclick="doReset()">Clear Board</button>
+      <button class="btn ghost" onclick="closeModal('confirmOverlay')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="saveOverlay">
+  <div class="modal">
+    <h2>Save Bid</h2>
+    <p class="hint">Copy this bid code (Notes, email to yourself) or download it. To restore later use <b>Load Bid</b>. Saves the whole board and roster.</p>
+    <textarea id="saveText" readonly></textarea>
+    <div class="row">
+      <button class="btn save" onclick="copySave()">Copy Code</button>
+      <button class="btn load" onclick="downloadSave()">Download File</button>
+      <button class="btn reset" onclick="closeModal('saveOverlay')">Close</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="loadOverlay">
+  <div class="modal">
+    <h2>Load Bid</h2>
+    <p class="hint">Paste a saved bid code and tap Apply — or choose a saved <b>.json</b> file. Replaces the current board.</p>
+    <textarea id="loadText" placeholder="Paste bid code here..."></textarea>
+    <div class="row">
+      <button class="btn save" onclick="applyPasted()">Apply Pasted Code</button>
+      <input type="file" id="loadFile" accept=".json,application/json" onchange="applyFile(event)">
+    </div>
+    <div class="row"><button class="btn reset" onclick="closeModal('loadOverlay')">Close</button></div>
+  </div>
+</div>
+
+<div class="overlay" id="rosterOverlay">
+  <div class="modal">
+    <h2>Edit Roster</h2>
+    <p class="hint">Add or remove people. Type names as <b>Last, First</b>. Removing someone placed clears them off the board. New adds have no codes — tell me and I'll add their PM/RS/AC.</p>
+    <div class="row">
+      <input type="text" id="newName" placeholder="Last, First">
+      <select id="newRank">
+        <option value="ff">Firefighter</option>
+        <option value="captain">Captain</option>
+        <option value="bc">Battalion Chief</option>
+      </select>
+      <button class="btn edit" onclick="addPerson()">Add</button>
+    </div>
+    <div id="rosterList"></div>
+    <div class="row"><button class="btn reset" onclick="closeModal('rosterOverlay')">Close</button></div>
+  </div>
+</div>
+
+<script>
+/* ================= ROSTER ================= */
+let roster = [
+  {name:"Bunnell, Joseph", rank:"captain", quals:["RS"]},
+  {name:"Spiteri, Anthony", rank:"captain", quals:[]},
+  {name:"Klarich, Ryan", rank:"captain", quals:["RS"]},
+  {name:"Boyle, Daniel", rank:"captain", quals:[]},
+  {name:"Symkowick, Marc", rank:"captain", quals:[]},
+  {name:"Shomaker, Peggy", rank:"captain", quals:[]},
+  {name:"Barahona, Herman", rank:"captain", quals:[]},
+  {name:"Stacey, Scott", rank:"captain", quals:["RS"]},
+  {name:"Besozzi, Steven", rank:"captain", quals:["RS"]},
+  {name:"Novelli, David", rank:"captain", quals:["RS"]},
+  {name:"Hinsch, Kevin", rank:"captain", quals:[]},
+  {name:"Kuhner, Kevin", rank:"captain", quals:[]},
+  {name:"Wettstein, Christopher", rank:"captain", quals:["RS"]},
+  {name:"Kirby, Lukas", rank:"captain", quals:["RS"]},
+  {name:"Kelly, Brenden", rank:"captain", quals:[]},
+  {name:"Donovan, Kyle", rank:"captain", quals:[]},
+  {name:"Hollenbeck, North", rank:"captain", quals:["RS"]},
+  {name:"Hunt, Ronald", rank:"captain", quals:["RS"]},
+  {name:"Klink, Michael", rank:"captain", quals:["RS"]},
+  {name:"Gibbons, Anthony", rank:"captain", quals:[]},
+  {name:"Mason, Matthew", rank:"captain", quals:[]},
+  {name:"Caceres, Eric", rank:"captain", quals:["RS"]},
+  {name:"Perry, Joe", rank:"bc", quals:[]},
+  {name:"McNichol Jr, Robert", rank:"ff", quals:["PM"]},
+  {name:"Murray, Joseph", rank:"ff", quals:["RS"]},
+  {name:"Cerecedes, Daniel", rank:"ff", quals:["PM","RS","AC"]},
+  {name:"Hutchinson, Jonathan", rank:"ff", quals:[]},
+  {name:"Bader, Travis", rank:"ff", quals:["PM","RS","AC"]},
+  {name:"Ryan, Vincent", rank:"ff", quals:["AC"]},
+  {name:"Nuñez, Fernando", rank:"ff", quals:["PM","AC"]},
+  {name:"Mallick, Ryan", rank:"ff", quals:["PM","AC"]},
+  {name:"Pries, Brian", rank:"ff", quals:["PM","RS"]},
+  {name:"Vanderwerff, Willem", rank:"ff", quals:["PM","RS","AC"]},
+  {name:"Gonzales, Chase", rank:"ff", quals:["PM"]},
+  {name:"Hollenbeck, Ky", rank:"ff", quals:["PM","RS","AC"]},
+  {name:"Bradley, Chad", rank:"ff", quals:["PM"]},
+  {name:"Armstrong, Garland", rank:"ff", quals:["PM"]},
+  {name:"Hutten, Timothy", rank:"ff", quals:[]},
+  {name:"Kelly, Colin", rank:"ff", quals:["PM","AC"]},
+  {name:"McWhirter, Michael", rank:"ff", quals:["PM"]},
+  {name:"Maccarra, John", rank:"ff", quals:["PM"]},
+  {name:"Sousa, Scott", rank:"ff", quals:["RS","AC"]},
+  {name:"Eversole, Trevor", rank:"ff", quals:["PM"]},
+  {name:"MacIntosh, Eric", rank:"ff", quals:["PM"]},
+  {name:"Conroy, Tyler", rank:"ff", quals:["PM"]},
+  {name:"Goudarzi, John", rank:"ff", quals:[]},
+  {name:"Reardon, Scott", rank:"ff", quals:["PM"]},
+  {name:"Kadash, Christian", rank:"ff", quals:["PM","AC"]},
+  {name:"Plume, Joseph", rank:"ff", quals:["PM"]},
+  {name:"Barajas, Lucas", rank:"ff", quals:["RS","AC"]},
+  {name:"Houser, Matthew", rank:"ff", quals:["PM"]},
+  {name:"Rafferty, Kevin", rank:"ff", quals:["PM"]},
+  {name:"Hopkins, Elliot", rank:"ff", quals:["PM","RS","AC"]},
+  {name:"Ershov, Daniel", rank:"ff", quals:["PM","AC"]},
+  {name:"Lastusky, Andrew", rank:"ff", quals:["PM"]},
+  {name:"Caliz, Samuel", rank:"ff", quals:[]},
+  {name:"Carreon, Drew", rank:"ff", quals:["PM"]},
+  {name:"Jerkunica, Marinko", rank:"ff", quals:["PM"]},
+  {name:"Parsons, Brianne", rank:"ff", quals:[]},
+  {name:"Bourke, Braeden", rank:"ff", quals:[]},
+  {name:"Uhrich, Robert", rank:"ff", quals:[]},
+  {name:"Dauwe, Paea", rank:"ff", quals:[]},
+  {name:"Kaulave, Philip", rank:"ff", quals:[]},
+  {name:"Marshall, Brett", rank:"ff", quals:["PM"]},
+  {name:"Nordhoff, Ryan", rank:"ff", quals:["PM"]},
+  {name:"Rios, KC", rank:"ff", quals:["PM"]},
+  {name:"Villeggiante, Anthony", rank:"ff", quals:["PM"]},
+  {name:"Perez, Gabriel", rank:"ff", quals:["PM"]},
+  {name:"McPhillips, Dylan", rank:"ff", quals:["PM"]},
+  {name:"Henrickson, Daniel", rank:"ff", quals:[]},
+  {name:"Collet, Trevor", rank:"ff", quals:["PM"]},
+  {name:"Miller, Pat", rank:"ff", quals:["PM"]},
+  {name:"Smith, Kennedy", rank:"ff", quals:[]},
+  {name:"Washburn, Jesse", rank:"ff", quals:[]},
+];
+
+const battalionChiefs = {
+  A:{name:"Pera, Casey", quals:["RS"]},
+  B:{name:"Vella, Billy", quals:[]},
+  C:{name:"Murphy, Pat", quals:["RS"]},
+};
+
+const holidaysByShift = {
+  A:[["Fri Jan 1","New Year's Day"],["Mon May 31","Memorial Day"],["Sat Jun 19","Juneteenth"],["Mon Oct 11","Columbus Day"]],
+  B:[["Mon Jan 18","MLK Day"],["Sun Jul 4","Independence Day"],["Thu Nov 25","Thanksgiving"],["Sat Dec 25","Christmas"],["Fri Dec 31","New Year's Eve"]],
+  C:[["Mon Feb 15","Presidents' Day"],["Wed Mar 17","St. Patrick's Day"],["Sun Mar 28","Easter"],["Sun May 9","Mother's Day"],["Sun Jun 20","Father's Day"],["Mon Sep 6","Labor Day"],["Sun Oct 31","Halloween"],["Thu Nov 11","Veterans Day"],["Fri Dec 24","Christmas Eve"]],
+};
+
+/* ================= STRUCTURE ================= */
+const engineSlots = [
+  {key:"capt", label:"Captain", kind:"captain"},
+  {key:"medic", label:"Paramedic", kind:"medic"},
+  {key:"medicEmt", label:"Paramedic / EMT", kind:"flex"},
+];
+const truckSlots = [
+  {key:"capt", label:"Captain", kind:"captain"},
+  {key:"medic", label:"Paramedic", kind:"medic"},
+  {key:"flex1", label:"EMT / Paramedic", kind:"flex"},
+  {key:"flex2", label:"EMT / Paramedic", kind:"flex"},
+];
+const stations = [
+  {id:"32", title:"Station 32", slots:engineSlots},
+  {id:"33", title:"Station 33", slots:engineSlots},
+  {id:"e34", title:"Engine 34", slots:engineSlots},
+  {id:"t34", title:"Truck 34", slots:truckSlots},
+  {id:"35", title:"Station 35", slots:engineSlots},
+  {id:"36", title:"Station 36", slots:engineSlots},
+  {id:"37", title:"Station 37", slots:engineSlots},
+  {id:"38", title:"Station 38", slots:engineSlots},
+];
+const shifts = ["A","B","C"];
+const floatSlots = ["1","2","3","4"];
+const holdSlots = ["hold1","hold2","hold3"];
+const CODE_ORDER = ["PM","RS","AC"];
+
+/* ================= STATE ================= */
+let slotMeta = {}, assignments = {}, placed = {};
+
+function initState(){
+  slotMeta = {}; assignments = {}; placed = {};
+  shifts.forEach(s => stations.forEach(st => st.slots.forEach(sl => {
+    const id = `${s}|${st.id}|${sl.key}`;
+    slotMeta[id] = {label:sl.label, kind:sl.kind}; assignments[id] = null;
+  })));
+  shifts.forEach(s => floatSlots.forEach(k => {
+    const id = `float|${s}|${k}`; slotMeta[id] = {label:"Float", kind:"float"}; assignments[id] = null;
+  }));
+  slotMeta["off|tbc"]  = {label:"Training BC", kind:"bc"};              assignments["off|tbc"]  = null;
+  slotMeta["off|tcap"] = {label:"Training Captain", kind:"trainingcap"}; assignments["off|tcap"] = null;
+  holdSlots.forEach((k,i) => { const id = `off|${k}`; slotMeta[id] = {label:`Holding ${i+1}`, kind:"hold"}; assignments[id] = null; });
+}
+function preplaceDefaults(){ assignments["off|tbc"] = "Perry, Joe"; placed["Perry, Joe"] = "off|tbc"; }
+function qualsFor(name){ const r = roster.find(x => x.name === name); return r ? (r.quals || []) : []; }
+function isMedic(name){ return qualsFor(name).includes('PM'); }
+function hasAC(name){ return qualsFor(name).includes('AC'); }
+function isCaptainRank(name){ const r = roster.find(x => x.name === name); return !!r && r.rank === 'captain'; }
+function roleClass(name){
+  const r = roster.find(x => x.name === name);
+  if(!r) return 'role-ff';
+  if(r.rank === 'bc') return 'role-bc';
+  if(r.rank === 'captain') return 'role-capt';
+  if((r.quals||[]).includes('PM')) return 'role-medic';
+  return 'role-ff';
+}
+function roleDot(name){ return `<span class="rdot ${roleClass(name)}">●</span>`; }
+function codesHTML(name, inCaptSeat){
+  const q = qualsFor(name);
+  const parts = CODE_ORDER.filter(c => q.includes(c)).map(c =>
+    (c === 'PM' && inCaptSeat) ? 'PM<span class="pmstar">*</span>' : c);
+  return parts.length ? `<span class="codes">${parts.join(' · ')}</span>` : '';
+}
+
+/* ================= BUILD DOM ================= */
+function slotHTML(id){
+  const m = slotMeta[id];
+  const d = document.createElement('div');
+  d.className = 'slot'; d.dataset.slotid = id;
+  d.innerHTML = `
+    <span class="slotLabel">${m.label}</span>
+    <span class="slotName empty">— open —</span>
+    <span class="grip" title="Drag">⠿</span>
+    <button class="clearBtn" title="Clear">✕</button>`;
+  d.querySelector('.clearBtn').addEventListener('click', ev => {
+    ev.stopPropagation();
+    const n = assignments[id];
+    if(n){ assignments[id]=null; delete placed[n]; refreshSlot(id); renderPool(); updateCounts(); recordHistory(); }
+  });
+  pointerInteraction(d, {
+    canDrag: () => !!assignments[id],
+    dragPayload: () => { const n = assignments[id]; return n ? {name:n, sourceType:'slot', slotId:id} : null; },
+    onTap: () => slotTap(id)
+  });
+  return d;
+}
+
+function buildBoard(){
+  const board = document.getElementById('board');
+  board.innerHTML = '';
+  shifts.forEach(shift => {
+    const col = document.createElement('div');
+    col.className = 'shiftCol'; col.dataset.shift = shift;
+    const bc = battalionChiefs[shift];
+    col.innerHTML = `
+      <div class="shiftHead">
+        <div class="letter">${shift}</div>
+        <div class="name">Shift · BC: ${bc.name}${codesHTML(bc.name, false)}</div>
+      </div>
+      <div class="counter">
+        <span class="c-pm">PM<b id="cnt-${shift}-pm">0</b></span>
+        <span class="c-rs">RS<b id="cnt-${shift}-rs">0</b></span>
+        <span class="c-ac">AC<b id="cnt-${shift}-ac">0</b></span>
+        <span class="c-open">Open<b id="cnt-${shift}-open">0</b></span>
+      </div>`;
+    stations.forEach(st => {
+      const block = document.createElement('div');
+      block.className = 'stationBlock';
+      block.innerHTML = `<div class="stationTitle" id="sttl-${shift}-${st.id}">${st.title}</div>`;
+      st.slots.forEach(sl => block.appendChild(slotHTML(`${shift}|${st.id}|${sl.key}`)));
+      col.appendChild(block);
+    });
+    const fblock = document.createElement('div');
+    fblock.className = 'stationBlock';
+    fblock.innerHTML = `<div class="stationTitle">Floats</div>`;
+    floatSlots.forEach(k => fblock.appendChild(slotHTML(`float|${shift}|${k}`)));
+    col.appendChild(fblock);
+    board.appendChild(col);
+  });
+
+  const footer = document.getElementById('footer');
+  footer.innerHTML = '';
+  const offBlock = document.createElement('div');
+  offBlock.className = 'footBlock offshift';
+  offBlock.innerHTML = `<div class="footTitle">Training</div>`;
+  offBlock.appendChild(slotHTML('off|tbc'));
+  offBlock.appendChild(slotHTML('off|tcap'));
+  const sh = document.createElement('div'); sh.className = 'subhead'; sh.textContent = 'Holding Area';
+  offBlock.appendChild(sh);
+  holdSlots.forEach(k => offBlock.appendChild(slotHTML(`off|${k}`)));
+  footer.appendChild(offBlock);
+
+  document.getElementById('holList').innerHTML = '<div id="holWrap">' + shifts.map(s => {
+    const rows = holidaysByShift[s].map(h => `<div class="hrow"><span class="hdate">${h[0]}</span><span class="hname">${h[1]}</span></div>`).join('');
+    return `<div class="holGroup"><div class="holGroupTitle s-${s}">${s} Shift (${holidaysByShift[s].length})</div>${rows}</div>`;
+  }).join('') + '</div>';
+}
+
+function refreshSlot(id){
+  const el = document.querySelector(`.slot[data-slotid="${CSS.escape(id)}"]`);
+  if(!el) return;
+  const name = assignments[id];
+  const nameSpan = el.querySelector('.slotName');
+  el.classList.toggle('filled', !!name);
+  if(name){
+    const isCapt = id.split('|')[2] === 'capt';
+    nameSpan.innerHTML = `${roleDot(name)}<span class="pname">${name}</span>${codesHTML(name, isCapt)}`;
+    nameSpan.classList.remove('empty');
+  } else {
+    nameSpan.innerHTML = '— open —'; nameSpan.classList.add('empty');
+  }
+}
+function refreshAllSlots(){ Object.keys(slotMeta).forEach(refreshSlot); }
+
+/* ================= COUNTERS + FLAGS ================= */
+function updateCounts(){
+  const tally = {A:{pm:0,rs:0,ac:0,open:0}, B:{pm:0,rs:0,ac:0,open:0}, C:{pm:0,rs:0,ac:0,open:0}};
+  Object.keys(assignments).forEach(id => {
+    let shift=null, isCapt=false;
+    if(id.startsWith('float|')){ shift = id.split('|')[1]; }
+    else if(id.startsWith('off|')){ return; }
+    else { const p = id.split('|'); shift = p[0]; isCapt = (p[2] === 'capt'); }
+    if(!tally[shift]) return;
+    const name = assignments[id];
+    if(!name){ tally[shift].open++; return; }
+    const q = qualsFor(name);
+    if(q.includes('PM') && !isCapt) tally[shift].pm++;
+    if(q.includes('RS')) tally[shift].rs++;
+    if(q.includes('AC')) tally[shift].ac++;
+  });
+  shifts.forEach(s => {
+    document.getElementById(`cnt-${s}-pm`).textContent = tally[s].pm;
+    document.getElementById(`cnt-${s}-rs`).textContent = tally[s].rs;
+    document.getElementById(`cnt-${s}-ac`).textContent = tally[s].ac;
+    document.getElementById(`cnt-${s}-open`).textContent = tally[s].open;
+  });
+  shifts.forEach(s => stations.forEach(st => {
+    let anyone = false, medic = false;
+    st.slots.forEach(sl => { const n = assignments[`${s}|${st.id}|${sl.key}`]; if(n){ anyone = true; if(isMedic(n)) medic = true; } });
+    const ttl = document.getElementById(`sttl-${s}-${st.id}`);
+    if(ttl) ttl.classList.toggle('understaffed', anyone && !medic);
+  }));
+}
+
+/* ================= POOL + ON THE CLOCK ================= */
+let poolFilter = 'all';
+let balanceOn = false;
+function setFilter(f){
+  poolFilter = f;
+  document.querySelectorAll('.filterBtn').forEach(b => b.classList.toggle('active', b.dataset.f === f));
+  renderPool();
+}
+function onTheClock(){ for(const r of roster){ if(!placed[r.name]) return r.name; } return null; }
+function renderPool(){
+  const pool = document.getElementById('pool');
+  const query = document.getElementById('poolSearch').value.trim().toLowerCase();
+  pool.innerHTML = '';
+  const canBid = (poolFilter === 'all');
+  const clock = onTheClock();
+  let list = roster.filter(r => !placed[r.name]);
+  if(poolFilter !== 'all') list = list.filter(r => (r.quals||[]).includes(poolFilter));
+  if(query) list = list.filter(r => r.name.toLowerCase().includes(query));
+  list.forEach(r => {
+    const chip = document.createElement('div');
+    chip.className = 'chip';
+    if(canBid && r.name === clock) chip.classList.add('onclock');
+    const tag = r.rank==='captain' ? 'CAPT' : r.rank==='bc' ? 'BC' : '';
+    const gripHTML = canBid ? `<span class="grip" title="Drag">⠿</span>` : '';
+    chip.innerHTML = `${gripHTML}${roleDot(r.name)}<span class="chipName">${r.name}</span>${codesHTML(r.name, false)}<span class="tag">${tag}</span>`;
+    if(canBid){
+      pointerInteraction(chip, {
+        canDrag: () => true,
+        dragPayload: () => ({name:r.name, sourceType:'pool'}),
+        onTap: () => chipTap(r.name)
+      });
+    }
+    pool.appendChild(chip);
+  });
+  document.getElementById('viewHint').style.display = canBid ? 'none' : 'block';
+  const avail = roster.filter(r => !placed[r.name]).length;
+  document.getElementById('poolCount').textContent = `${avail} of ${roster.length} unassigned`;
+  ensureClockSelection(); renderSelection();
+}
+
+/* ================= SELECTION (auto on-the-clock + tap to place) ================= */
+let ghostEl = null, curHi = null, selected = null;
+
+function ensureClockSelection(){
+  let valid = false;
+  if(selected && !selected.auto){
+    if(selected.sourceType==='slot') valid = (assignments[selected.slotId] === selected.name);
+    else valid = !placed[selected.name];
+  }
+  if(!valid){
+    const c = onTheClock();
+    selected = c ? {name:c, sourceType:'pool', auto:true} : null;
+  }
+}
+function chipTap(name){ selected = {name, sourceType:'pool', auto:false}; renderSelection(); }
+function slotTap(id){
+  const occ = assignments[id];
+  if(selected && !selected.auto && selected.sourceType==='slot' && selected.slotId===id){ cancelSelection(); return; }
+  if(selected){
+    if(selected.auto && occ){ selected = {name:occ, sourceType:'slot', slotId:id}; renderSelection(); return; }
+    placeIntoSlot(selected, id);
+    return;
+  }
+  if(occ){ selected = {name:occ, sourceType:'slot', slotId:id}; renderSelection(); }
+}
+function renderSelection(){
+  document.querySelectorAll('.selected').forEach(x => x.classList.remove('selected'));
+  if(selected){
+    if(selected.sourceType==='slot'){
+      const el = document.querySelector(`.slot[data-slotid="${CSS.escape(selected.slotId)}"]`);
+      if(el) el.classList.add('selected');
+    } else {
+      document.querySelectorAll('#pool .chip').forEach(c => { if(c.querySelector('.chipName').textContent === selected.name) c.classList.add('selected'); });
+    }
+  }
+  refreshStatus();
+}
+function refreshStatus(){
+  const bar = document.getElementById('statusBar');
+  const label = document.getElementById('statusLabel');
+  const nameEl = document.getElementById('statusName');
+  const cancel = document.getElementById('statusCancel');
+  if(selected && selected.auto){
+    label.textContent = 'On the clock — tap a seat'; nameEl.textContent = selected.name;
+    cancel.style.display = 'none'; bar.classList.add('placing');
+  } else if(selected && selected.sourceType==='pool'){
+    label.textContent = 'Selected — tap a seat'; nameEl.textContent = selected.name;
+    cancel.style.display = 'inline-block'; bar.classList.add('placing');
+  } else if(selected){
+    label.textContent = 'Moving — tap a seat'; nameEl.textContent = selected.name;
+    cancel.style.display = 'inline-block'; bar.classList.add('placing');
+  } else {
+    label.textContent = 'On the clock'; nameEl.textContent = onTheClock() || 'All placed';
+    cancel.style.display = 'none'; bar.classList.remove('placing');
+  }
+}
+function cancelSelection(){ selected = null; ensureClockSelection(); renderSelection(); }
+function clearSelection(){ selected = null; renderSelection(); }
+
+/* ================= DRAG ENGINE ================= */
+function pointerInteraction(el, opts){
+  el.addEventListener('pointerdown', e => {
+    if(e.button && e.button !== 0) return;
+    if(e.target.closest('.clearBtn')) return;
+    const isTouch = e.pointerType === 'touch';
+    const onHandle = !!e.target.closest('.grip');
+    const drag = opts.canDrag();
+    const sx = e.clientX, sy = e.clientY;
+    let started = false, holdTimer = null, lastX = sx, lastY = sy;
+    if(drag && (!isTouch || onHandle)) e.preventDefault();
+    const begin = () => {
+      if(started) return;
+      const p = opts.dragPayload(); if(!p) return;
+      clearSelection();
+      started = true; beginDrag(p, el); moveGhost(lastX,lastY); updateHighlight(lastX,lastY);
+    };
+    const cleanup = () => {
+      if(holdTimer){ clearTimeout(holdTimer); holdTimer = null; }
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onCancel);
+    };
+    const onMove = ev => {
+      lastX = ev.clientX; lastY = ev.clientY;
+      const moved = Math.hypot(ev.clientX - sx, ev.clientY - sy);
+      if(!started){
+        if(!drag) return;
+        if(isTouch && !onHandle){ if(moved > 10) cleanup(); return; }
+        if(moved < 6) return;
+        begin();
+      }
+      ev.preventDefault(); moveGhost(ev.clientX, ev.clientY); updateHighlight(ev.clientX, ev.clientY);
+    };
+    const onUp = ev => {
+      const was = started; cleanup();
+      if(was){
+        finishDrag(opts.dragPayload(), ev.clientX, ev.clientY);
+        clearVisuals(); ensureClockSelection(); renderSelection();
+        return;
+      }
+      const moved = Math.hypot(ev.clientX - sx, ev.clientY - sy);
+      if(moved < 10 && opts.onTap) opts.onTap();
+    };
+    const onCancel = () => { cleanup(); clearVisuals(); };
+    if(drag && isTouch && !onHandle) holdTimer = setTimeout(begin, 160);
+    window.addEventListener('pointermove', onMove, {passive:false});
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onCancel);
+  });
+}
+function beginDrag(payload, el){
+  el.classList.add('dragging'); document.body.classList.add('dragging-active');
+  ghostEl = document.createElement('div'); ghostEl.className = 'dragGhost';
+  ghostEl.textContent = payload.name; document.body.appendChild(ghostEl);
+}
+function moveGhost(x,y){ if(ghostEl){ ghostEl.style.left=(x+2)+'px'; ghostEl.style.top=(y+2)+'px'; } }
+function updateHighlight(x,y){
+  const t = document.elementFromPoint(x,y);
+  const slot = t ? t.closest('.slot') : null;
+  if(curHi && curHi !== slot) curHi.classList.remove('dragover');
+  if(slot){ slot.classList.add('dragover'); curHi = slot; } else curHi = null;
+}
+function finishDrag(payload,x,y){
+  const t = document.elementFromPoint(x,y);
+  const slot = t ? t.closest('.slot') : null;
+  if(slot){ placeIntoSlot(payload, slot.dataset.slotid); }
+  else if(t && (t.closest('#pool') || t.closest('#poolWrap')) && payload.sourceType==='slot'){
+    assignments[payload.slotId] = null; delete placed[payload.name];
+    refreshSlot(payload.slotId); renderPool(); updateCounts(); recordHistory();
+  }
+}
+function clearVisuals(){
+  if(ghostEl){ ghostEl.remove(); ghostEl = null; }
+  if(curHi){ curHi.classList.remove('dragover'); curHi = null; }
+  document.body.classList.remove('dragging-active');
+  document.querySelectorAll('.dragging').forEach(x => x.classList.remove('dragging'));
+}
+function flashSlot(id){
+  const el = document.querySelector(`.slot[data-slotid="${CSS.escape(id)}"]`);
+  if(el){ el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash'); }
+}
+
+/* ================= PLACEMENT + RULES ================= */
+let toastTimer = null;
+function showToast(msg, kind){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.remove('info','error'); t.classList.add(kind === 'info' ? 'info' : 'error', 'show');
+  if(toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), kind === 'info' ? 3600 : 2800);
+}
+function validateMove(payload, targetId){
+  const sim = Object.assign({}, assignments);
+  const displaced = sim[targetId] || null;
+  const changed = [targetId];
+  if(payload.sourceType === 'slot'){ sim[payload.slotId] = displaced; sim[targetId] = payload.name; changed.push(payload.slotId); }
+  else { sim[targetId] = payload.name; }
+  const captSeatKinds = ['captain','trainingcap'];
+  const ffKinds = ['medic','flex','float'];
+  for(const id of changed){
+    const occ = sim[id]; if(!occ) continue;
+    const kind = slotMeta[id].kind;
+    if(captSeatKinds.includes(kind) && !isCaptainRank(occ) && !hasAC(occ)) return '';   // silent
+    if(ffKinds.includes(kind) && isCaptainRank(occ)) return '';                          // silent
+    if(kind === 'medic' && !isMedic(occ)) return '';                                     // paramedic-only seat
+  }
+  const engines = new Set();
+  changed.forEach(id => { if(id.startsWith('float|')||id.startsWith('off|')) return; const p = id.split('|'); if(p[1] !== 't34') engines.add(p[0]+'|'+p[1]); });
+  for(const eng of engines){
+    const [s, stid] = eng.split('|');
+    const cap = sim[`${s}|${stid}|capt`];
+    const crew = [sim[`${s}|${stid}|medic`], sim[`${s}|${stid}|medicEmt`]].filter(Boolean);
+    if(crew.length === 2 && !crew.some(isMedic) && !(cap && isMedic(cap)))
+      return 'That engine would have no paramedic — a rig can’t seat two EMTs without a medic.';
+  }
+  return null;
+}
+function canBalance(arr, R){
+  const a = arr.slice();
+  for(let i=0;i<R;i++){ let mi=0; for(let j=1;j<a.length;j++) if(a[j]<a[mi]) mi=j; a[mi]++; }
+  return Math.max(...a) - Math.min(...a) <= 1;
+}
+function balanceState(excludeName){
+  const base = {A:0,B:0,C:0};
+  const placedSet = new Set();
+  Object.keys(assignments).forEach(id => {
+    const n = assignments[id]; if(!n) return; placedSet.add(n);
+    if(n === excludeName) return;
+    let shift = null;
+    if(id.startsWith('float|')) shift = id.split('|')[1];
+    else if(id.startsWith('off|')) return;
+    else { const p = id.split('|'); if(p[2] === 'capt') return; shift = p[0]; }
+    if(shift && isMedic(n)) base[shift]++;
+  });
+  let R = 0;
+  roster.forEach(r => { if(isMedic(r.name) && !placedSet.has(r.name) && r.name !== excludeName) R++; });
+  return {base, R};
+}
+function balanceBlock(payload, targetId){
+  if(!balanceOn || !isMedic(payload.name)) return null;
+  const kind = slotMeta[targetId].kind;
+  if(!['medic','flex','float'].includes(kind)) return null;
+  const shift = targetId.startsWith('float|') ? targetId.split('|')[1] : targetId.split('|')[0];
+  const {base, R} = balanceState(payload.name);
+  const test = s => { const b = {A:base.A, B:base.B, C:base.C}; b[s]++; return canBalance([b.A,b.B,b.C], R); };
+  if(test(shift)) return null;
+  const allowed = ['A','B','C'].filter(test);
+  const first = payload.name.split(',')[0];
+  return allowed.length
+    ? `Paramedic balance: ${shift} shift already has enough medics. ${first} needs to bid ${allowed.join(' or ')} shift to keep the shifts even.`
+    : `Paramedic balance: adding another medic here would unbalance the shifts. Free up a seat elsewhere first.`;
+}
+function rigCoverageBlock(payload, targetId){
+  if(!isMedic(payload.name)) return null;
+  if(targetId.startsWith('float|') || targetId.startsWith('off|')) return null;
+  const p = targetId.split('|'); const S = p[0], STID = p[1];
+  const st = stations.find(x => x.id === STID); if(!st) return null;
+  const sim = Object.assign({}, assignments);
+  if(payload.sourceType === 'slot'){ sim[payload.slotId] = assignments[targetId] || null; }
+  sim[targetId] = payload.name;
+  const rigMedics = st.slots.map(sl => `${S}|${STID}|${sl.key}`).filter(id => { const n = sim[id]; return n && isMedic(n); }).length;
+  if(rigMedics < 2) return null;                    // first medic on this rig — always allowed
+  let bare = 0;                                     // rigs (not floats) with no medic anywhere, across all shifts
+  shifts.forEach(s => stations.forEach(x => {
+    const seats = x.slots.map(sl => `${s}|${x.id}|${sl.key}`);
+    if(!seats.some(id => { const n = sim[id]; return n && isMedic(n); })) bare++;
+  }));
+  const placedSet = new Set(Object.values(sim).filter(Boolean));
+  let remaining = 0;
+  roster.forEach(r => { if(isMedic(r.name) && !placedSet.has(r.name)) remaining++; });
+  if(remaining >= bare) return null;
+  const first = payload.name.split(',')[0];
+  return `Every rig needs a medic first — this doubles up ${st.title} while another rig still has none. Put ${first} on a rig with no medic yet.`;
+}
+function placeIntoSlot(payload, targetId){
+  if(payload.sourceType === 'slot' && payload.slotId === targetId) return true;
+  const err = validateMove(payload, targetId);
+  if(err !== null){ if(err) showToast(err, 'error'); return false; }
+  const cmsg = rigCoverageBlock(payload, targetId);
+  if(cmsg){ showToast(cmsg, 'info'); return false; }
+  const bmsg = balanceBlock(payload, targetId);
+  if(bmsg){ showToast(bmsg, 'info'); return false; }
+  const targetName = assignments[targetId] || null;
+  if(payload.sourceType === 'pool'){
+    if(targetName) delete placed[targetName];
+    assignments[targetId] = payload.name; placed[payload.name] = targetId;
+  } else {
+    const srcId = payload.slotId;
+    assignments[srcId] = targetName;
+    assignments[targetId] = payload.name;
+    if(targetName) placed[targetName] = srcId;
+    placed[payload.name] = targetId;
+    refreshSlot(srcId);
+  }
+  refreshSlot(targetId); flashSlot(targetId); renderPool(); updateCounts(); recordHistory();
+  return true;
+}
+
+/* ================= UNDO / REDO ================= */
+let history = [], histIdx = -1;
+function snapshot(){ return JSON.stringify({a:assignments, r:roster}); }
+function recordHistory(){ history = history.slice(0, histIdx + 1); history.push(snapshot()); histIdx = history.length - 1; updateUndoButtons(); }
+function restoreSnapshot(s){
+  const o = JSON.parse(s); roster = o.r; assignments = o.a; placed = {};
+  Object.keys(assignments).forEach(id => { if(assignments[id]) placed[assignments[id]] = id; });
+  selected = null; refreshAllSlots(); renderPool(); updateCounts(); updateUndoButtons();
+}
+function undo(){ if(histIdx > 0){ histIdx--; restoreSnapshot(history[histIdx]); } }
+function redo(){ if(histIdx < history.length - 1){ histIdx++; restoreSnapshot(history[histIdx]); } }
+function updateUndoButtons(){
+  document.getElementById('undoBtn').disabled = histIdx <= 0;
+  document.getElementById('redoBtn').disabled = histIdx >= history.length - 1;
+}
+
+/* ================= SAVE / LOAD ================= */
+function buildPayload(){ return JSON.stringify({version:4, roster, assignments}, null, 2); }
+function openSave(){ document.getElementById('saveText').value = buildPayload(); document.getElementById('saveOverlay').classList.add('open'); }
+function copySave(){
+  const ta = document.getElementById('saveText'), txt = ta.value;
+  if(navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(()=>flash('Copied!'), ()=>legacyCopy(ta)); else legacyCopy(ta);
+}
+function legacyCopy(ta){ ta.focus(); ta.select(); try{ document.execCommand('copy'); flash('Copied!'); }catch(e){ flash('Select & copy'); } }
+function flash(msg){ const b = event && event.target; if(b){ const o = b.textContent; b.textContent = msg; setTimeout(()=>b.textContent=o,1200); } }
+function downloadSave(){
+  const blob = new Blob([buildPayload()], {type:'application/json'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'ccfd_mock_bid.json';
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href), 1000);
+}
+function openLoad(){ document.getElementById('loadText').value=''; document.getElementById('loadOverlay').classList.add('open'); }
+function applyPasted(){ try{ applyState(JSON.parse(document.getElementById('loadText').value)); closeModal('loadOverlay'); } catch(e){ alert('That code could not be read.'); } }
+function applyFile(ev){
+  const f = ev.target.files[0]; if(!f) return;
+  const r = new FileReader();
+  r.onload = () => { try{ applyState(JSON.parse(r.result)); closeModal('loadOverlay'); } catch(e){ alert('That file could not be read.'); } };
+  r.readAsText(f);
+}
+function applyState(payload){
+  if(!payload || typeof payload !== 'object'){ alert('Invalid bid data'); return; }
+  if(Array.isArray(payload.roster)) roster = payload.roster;
+  Object.keys(assignments).forEach(k => assignments[k] = null); placed = {};
+  const a = payload.assignments || {};
+  Object.keys(a).forEach(k => { if(k in assignments && a[k]){ assignments[k] = a[k]; placed[a[k]] = k; } });
+  selected = null; refreshAllSlots(); renderPool(); updateCounts(); recordHistory();
+}
+
+/* ================= EDIT ROSTER ================= */
+function openRoster(){ renderRosterList(); document.getElementById('rosterOverlay').classList.add('open'); }
+function addPerson(){
+  const inp = document.getElementById('newName'), name = inp.value.trim();
+  if(!name){ inp.focus(); return; }
+  if(roster.some(r => r.name.toLowerCase() === name.toLowerCase())){ alert('Already on the roster.'); return; }
+  roster.push({name, rank: document.getElementById('newRank').value, quals:[]});
+  inp.value = ''; renderRosterList(); renderPool(); recordHistory();
+}
+function removePerson(name){
+  if(placed[name]){ const id = placed[name]; assignments[id]=null; delete placed[name]; refreshSlot(id); }
+  roster = roster.filter(r => r.name !== name);
+  renderRosterList(); renderPool(); updateCounts(); recordHistory();
+}
+function renderRosterList(){
+  const list = document.getElementById('rosterList'); list.innerHTML = '';
+  roster.forEach(r => {
+    const row = document.createElement('div'); row.className = 'rItem';
+    const label = r.rank==='captain' ? 'CAPT' : r.rank==='bc' ? 'BC' : 'FF';
+    const q = (r.quals||[]).join(' ');
+    row.innerHTML = `<span class="rName">${r.name} <span class="codes">${q}</span></span><span class="rRank">${label}</span><button class="rDel" title="Remove">✕</button>`;
+    row.querySelector('.rDel').addEventListener('click', () => removePerson(r.name));
+    list.appendChild(row);
+  });
+}
+
+/* ================= ZOOM / LAYOUT ================= */
+let boardZoom = 1, fitActive = false;
+function clampZoom(z){ return Math.max(0.35, Math.min(1.4, z)); }
+function applyZoom(z){ boardZoom = clampZoom(z); document.getElementById('boardZoom').style.zoom = boardZoom; document.getElementById('zlabel').textContent = Math.round(boardZoom*100) + '%'; }
+function zoomStep(d){ fitActive = false; applyZoom(boardZoom + d); }
+function fitBoard(){
+  const bz = document.getElementById('boardZoom'); bz.style.zoom = 1;
+  const natural = document.getElementById('board').scrollWidth;
+  const avail = document.getElementById('boardArea').clientWidth - 4;
+  applyZoom(natural ? avail / natural : 1); fitActive = true;
+}
+function toggleRoster(){
+  const pw = document.getElementById('poolWrap');
+  pw.classList.toggle('collapsed');
+  document.getElementById('rosterToggle').textContent = pw.classList.contains('collapsed') ? 'Show Roster' : 'Hide Roster';
+  requestAnimationFrame(fitBoard);
+}
+let phoneManual = null;
+function isPhoneNow(){ return (phoneManual===null) ? (window.innerWidth <= 640) : phoneManual; }
+function applyLayout(){
+  const phone = isPhoneNow();
+  document.body.classList.toggle('phone', phone);
+  document.getElementById('layoutBtn').textContent = phone ? 'Full View' : 'Phone View';
+  const pw = document.getElementById('poolWrap');
+  if(phone){
+    pw.classList.remove('collapsed','open');
+    document.getElementById('rosterToggle').textContent = 'Hide Roster';
+    document.getElementById('drawerBtn').textContent = '☰ Show Roster';
+    if(!document.querySelector('.shiftCol.active-shift')) setPhoneShift('A');
+    applyZoom(1); fitActive = false;
+  } else {
+    pw.classList.remove('open');
+    fitBoard();
+  }
+}
+function toggleLayout(){ phoneManual = !document.body.classList.contains('phone'); applyLayout(); }
+function setPhoneShift(s){
+  document.querySelectorAll('.shiftCol').forEach(c => c.classList.toggle('active-shift', c.dataset.shift === s));
+  document.querySelectorAll('#phoneTabs button').forEach(b => b.classList.toggle('active', b.dataset.s === s));
+}
+function toggleDrawer(){
+  const pw = document.getElementById('poolWrap');
+  pw.classList.toggle('open');
+  document.getElementById('drawerBtn').textContent = pw.classList.contains('open') ? '✕ Hide Roster' : '☰ Show Roster';
+}
+window.addEventListener('resize', () => requestAnimationFrame(applyLayout));
+
+/* ================= MENU / MISC ================= */
+function toggleMenu(){ document.getElementById('menuDrop').classList.toggle('open'); }
+function closeMenu(){ document.getElementById('menuDrop').classList.remove('open'); }
+function toggleBalance(){
+  balanceOn = !balanceOn;
+  const b = document.getElementById('balanceBtn');
+  b.textContent = 'Balance Paramedics: ' + (balanceOn ? 'On' : 'Off');
+  b.style.color = balanceOn ? 'var(--amber)' : '';
+}
+document.addEventListener('click', e => { if(!e.target.closest('.menuWrap')) closeMenu(); });
+function toggleInfo(listId, arrowId){
+  const l = document.getElementById(listId), a = document.getElementById(arrowId);
+  l.classList.toggle('open'); a.textContent = l.classList.contains('open') ? '▾' : '▸';
+}
+function closeModal(id){ document.getElementById(id).classList.remove('open'); }
+function resetBoard(){ document.getElementById('confirmOverlay').classList.add('open'); }
+function doReset(){
+  closeModal('confirmOverlay');
+  Object.keys(assignments).forEach(k => assignments[k] = null); placed = {};
+  preplaceDefaults(); selected = null; refreshAllSlots(); renderPool(); updateCounts(); recordHistory();
+}
+document.querySelectorAll('.overlay').forEach(o => o.addEventListener('pointerdown', e => { if(e.target === o) o.classList.remove('open'); }));
+
+/* ================= INIT ================= */
+initState(); preplaceDefaults(); buildBoard(); refreshAllSlots(); renderPool(); updateCounts();
+recordHistory();
+requestAnimationFrame(applyLayout);
+</script>
+</body>
+</html>
