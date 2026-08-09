@@ -1,0 +1,2107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Bid Board">
+<meta name="theme-color" content="#0e1113">
+<title>CCFD Bid Board — Side Build</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+  :root{
+    --bg:#0e1113; --panel:#171b1e; --panel-2:#1f2427; --line:#2c3236; --line-soft:#1a1f24;
+    --amber:#f2a71b; --red:#c8362c; --teal:#2f9c95; --blue:#4f83c2; --green:#3fae5a; --violet:#9b7fc7;
+    --role-capt:#ff6f61; --role-medic:#4fb0ff; --role-ff:#f3c84e;
+    --text:#e8e6df; --text-dim:#8b9195; --slot-empty:#14181a; --codes:#5f666b;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);
+    font-family:'Oswald',sans-serif;height:100%;overflow:hidden;}
+  body{display:flex;flex-direction:column;}
+  body.dragging-active{user-select:none;cursor:grabbing;}
+
+  /* ---- TOP BAR ---- */
+  #topbar{background:var(--panel);border-bottom:3px solid var(--amber);flex-shrink:0;z-index:60;
+    display:flex;flex-wrap:wrap;align-items:center;column-gap:12px;row-gap:6px;padding:9px 18px;}
+  .brand{order:1;} .brand h1{margin:0;font-size:19px;letter-spacing:1.5px;font-weight:700;white-space:nowrap;}
+  .brand h1 span{color:var(--amber);}
+  .clkChip{order:2;display:flex;align-items:center;gap:9px;min-width:0;
+    background:rgba(242,167,27,.15);border:1px solid rgba(242,167,27,.3);border-radius:6px;padding:5px 12px;}
+  .clkChip #statusLabel{display:none;}
+  .clkChip #statusName{font-family:'Oswald',sans-serif;letter-spacing:.3px;font-size:15px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  #statusCancel{background:#161616;color:var(--amber);border:1px solid var(--amber);padding:4px 10px;border-radius:4px;
+    font-family:'Oswald';font-weight:600;cursor:pointer;letter-spacing:1px;text-transform:uppercase;font-size:10px;display:none;flex-shrink:0;}
+  .btnRow{order:3;display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+  .corner{order:4;margin-left:auto;display:flex;gap:6px;flex-shrink:0;}
+  .cmdUndo{display:flex;gap:5px;align-items:center;flex-shrink:0;}
+  .cmdActions{display:flex;gap:7px;align-items:center;flex-shrink:0;}
+
+  /* ============================================================
+     PER-VIEW CHROME ARRANGEMENT
+     arrangeChrome() moves the pieces between the top bar and the
+     bottom bar; these rules lay them out within each view.
+     ============================================================ */
+  /* FULL VIEW (portrait + landscape): everything up top, no bottom bar.
+     Row 1: title · name · Hide-Roster+Shift · [gap] · Show/?/More · undo.  Row 2: sizing tools. */
+  body:not(.phone) .brand{order:1;}
+  body:not(.phone) .clkChip{order:2;}
+  body:not(.phone) .cmdActions{order:3;margin-left:0;}
+  body:not(.phone) .corner{order:4;margin-left:auto;}
+  body:not(.phone) .cmdUndo{order:5;}
+  body:not(.phone) .btnRow{order:6;flex-basis:100%;}
+
+  /* PHONE PORTRAIT: compact name up top (icon-only corner); undo/redo + roster in the bottom bar */
+  body.phone:not(.landscape) .brand{order:1;}
+  body.phone:not(.landscape) .clkChip{order:2;flex:0 1 auto;padding:4px 9px;gap:6px;}
+  body.phone:not(.landscape) .clkChip #statusName{font-size:12px;letter-spacing:-.2px;}
+  body.phone:not(.landscape) .corner{order:3;margin-left:auto;}
+  body.phone:not(.landscape) .btnRow{order:4;flex-basis:100%;}
+  body.phone:not(.landscape) .brand h1{font-size:15px;letter-spacing:1px;}
+  body.phone:not(.landscape) .corner .bt{display:none;}          /* icons only, to save width */
+  body.phone:not(.landscape) .corner .btn{padding:7px 10px;}
+  body.phone:not(.landscape) #cmdBar .cmdUndo{order:1;}
+  body.phone:not(.landscape) #cmdBar .cmdActions{order:2;margin-left:auto;}
+
+  /* PHONE LANDSCAPE: title + name + sizing tools up top; undo/redo + roster in the bottom bar; no minimize.
+     Keep the "On the clock" label + last name, box trimmed to fit. */
+  body.phone.landscape #minBtn{display:none;}
+  body.phone.landscape .brand{order:1;}
+  body.phone.landscape .clkChip{order:2;flex:0 1 auto;padding:4px 10px;}
+  body.phone.landscape .clkChip #statusLabel{display:inline;font-size:8px;letter-spacing:1px;text-transform:uppercase;color:var(--amber);font-weight:600;white-space:nowrap;line-height:1.05;}
+  body.phone.landscape .clkChip #statusName{font-size:12px;}
+  body.phone.landscape .btnRow{order:3;flex-basis:auto;}
+  body.phone.landscape .corner{order:4;margin-left:auto;}
+  body.phone.landscape .brand h1{font-size:14px;letter-spacing:1px;}
+  body.phone.landscape #cmdBar{flex-wrap:wrap;}
+  body.phone.landscape #cmdBar .cmdUndo{order:1;}
+  body.phone.landscape #cmdBar .cmdActions{order:2;margin-left:auto;}
+  /* minimize (all views): hide the tool row */
+  body.chrome-min .btnRow{display:none;}
+  .toolGroup{display:flex;gap:4px;align-items:center;background:rgba(255,255,255,.035);border:1px solid var(--line);border-radius:6px;padding:3px;}
+  .btn{border:none;padding:9px 13px;font-family:'Oswald';font-weight:600;letter-spacing:1px;
+    font-size:13px;border-radius:3px;cursor:pointer;text-transform:uppercase;color:#fff;}
+  .btn.ghost{background:var(--panel-2);color:var(--text);border:1px solid var(--line);}
+  .btn.ghost:hover{background:var(--line);}
+  .btn.ghost:disabled{opacity:.32;cursor:default;background:var(--panel-2);}
+  .toolGroup .btn.ghost{border:none;background:none;} .toolGroup .btn.ghost:hover{background:var(--panel-2);}
+  .btn.reset{background:var(--red);} .btn.reset:hover{background:#e04236;}
+  .btn.save{background:var(--teal);} .btn.load{background:var(--blue);} .btn.edit{background:var(--amber);color:#161616;}
+  .zoomGroup{display:flex;align-items:center;gap:2px;background:var(--panel-2);border:1px solid var(--line);border-radius:4px;padding:2px;}
+  .toolGroup .zoomGroup{border:none;background:none;}
+  .zoomGroup button{background:none;border:none;color:var(--text);font-family:'Oswald';font-weight:700;
+    font-size:17px;cursor:pointer;padding:3px 10px;line-height:1;border-radius:3px;}
+  .zoomGroup button:hover{background:var(--line);}
+  .zoomGroup .zlabel{font-family:'JetBrains Mono';font-size:12px;color:var(--text-dim);min-width:40px;text-align:center;}
+  .menuWrap{position:relative;}
+  .menuDrop{position:absolute;right:0;top:calc(100% + 6px);background:var(--panel);border:1px solid var(--line);
+    border-radius:6px;box-shadow:0 8px 24px rgba(0,0,0,.5);display:none;flex-direction:column;min-width:180px;max-height:70vh;overflow-y:auto;z-index:190;}
+  .menuDrop.open{display:flex;}
+  .menuDrop .mHead{font-size:8px;color:#5f666b;letter-spacing:1.5px;text-transform:uppercase;padding:8px 15px 3px;}
+  .menuDrop button{background:none;border:none;color:var(--text);text-align:left;padding:10px 15px;
+    font-family:'Oswald';font-size:13px;letter-spacing:.5px;cursor:pointer;text-transform:uppercase;}
+  .menuDrop button:hover{background:var(--panel-2);}
+  .menuDrop .mDanger{color:var(--red);} .menuDrop .mDanger:hover{background:rgba(200,54,44,.15);}
+
+  /* ---- BOTTOM COMMAND BAR: Undo/Redo + Roster + Shift (all views) ---- */
+  #cmdBar{display:flex;align-items:center;gap:10px;flex-shrink:0;padding:7px 16px;
+    background:var(--panel);border-top:3px solid var(--amber);z-index:60;}
+  .cmdUndo{display:flex;gap:5px;flex-shrink:0;}
+  .cmdUndo button{background:var(--panel-2);border:1px solid var(--line);color:var(--text-dim);
+    border-radius:4px;font-family:'Oswald';font-weight:600;font-size:14px;letter-spacing:.5px;padding:6px 13px;cursor:pointer;}
+  .cmdUndo button:hover{background:var(--line);color:var(--text);}
+  .cmdUndo button:disabled{opacity:.3;cursor:default;}
+  .cmdActions{display:flex;gap:7px;flex-shrink:0;margin-left:auto;}
+  #rosterBtn{border:none;background:var(--amber);color:#161616;font-family:'Oswald';font-weight:700;
+    font-size:13px;letter-spacing:1px;text-transform:uppercase;border-radius:5px;padding:9px 16px;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;gap:7px;}
+  #rosterBtn:hover{background:#ffb92b;}
+  #shiftBtn{display:flex;border:1px solid var(--line);background:var(--panel-2);color:var(--amber);font-family:'Oswald';font-weight:700;
+    font-size:12px;letter-spacing:1px;text-transform:uppercase;border-radius:5px;padding:9px 14px;cursor:pointer;
+    align-items:center;justify-content:center;gap:7px;}
+  #shiftBtn:active{background:var(--line);}
+  body:not(.phone) #shiftPills{display:none;}
+  #shiftPills{display:flex;gap:3px;}
+  #shiftPills i{width:8px;height:8px;border-radius:2px;background:#3a4045;display:block;}
+  #shiftPills i.on{background:var(--amber);}
+  /* Side button lives in the roster panel in Full View */
+  body:not(.phone) #swapSideBtn{display:none;}
+  body:not(.phone) #swapBtn{display:inline-block;}
+
+  /* ---- LAYOUT ---- */
+  #main{flex:1;display:flex;min-height:0;}
+  #poolWrap.dock-right{order:2;border-right:none;border-left:3px solid var(--line);}
+  #boardArea.dock-left{order:1;}
+  #poolWrap{width:288px;min-width:288px;background:var(--panel);border-right:3px solid var(--line);
+    height:100%;overflow:hidden;display:flex;flex-direction:column;z-index:40;}
+  #poolWrap.collapsed{width:0;min-width:0;border-right:none;overflow:hidden;}
+  #poolHeader{padding:12px 16px 4px;border-bottom:2px solid var(--line);}
+  #poolHeader .label{font-size:12px;letter-spacing:2px;color:var(--amber);text-transform:uppercase;font-weight:600;}
+  #poolCount{font-family:'JetBrains Mono';font-size:11px;color:var(--text-dim);margin-top:2px;}
+  #poolSearch{margin:10px 16px 6px;padding:8px 10px;width:calc(100% - 32px);background:var(--panel-2);
+    border:1px solid var(--line);border-radius:3px;color:var(--text);font-family:'Oswald',sans-serif;font-size:14px;}
+  #filterRow{display:flex;gap:5px;padding:0 16px 6px;flex-wrap:wrap;}
+  .filterBtn{background:var(--panel-2);border:1px solid var(--line);color:var(--text-dim);font-family:'Oswald';
+    font-size:11px;font-weight:600;letter-spacing:1px;padding:4px 10px;border-radius:3px;cursor:pointer;text-transform:uppercase;}
+  .filterBtn.active{background:var(--amber);color:#161616;border-color:var(--amber);}
+  #viewHint{display:none;padding:0 16px 8px;font-size:11px;color:var(--text-dim);font-style:italic;}
+  #pool{overflow-y:auto;-webkit-overflow-scrolling:touch;padding:4px 12px 40px;flex:1;display:flex;flex-direction:column;gap:5px;}
+
+  #boardArea{flex:1;min-width:0;height:100%;overflow:auto;-webkit-overflow-scrolling:touch;}
+  #boardZoom{width:max-content;min-width:100%;transform-origin:top left;}
+
+  .chip{background:var(--panel-2);border:1px solid var(--line);padding:7px 8px;border-radius:3px;
+    font-family:'Oswald',sans-serif;letter-spacing:.3px;font-size:14px;font-weight:600;color:var(--text);display:flex;align-items:center;gap:5px;white-space:nowrap;}
+  .chip .chipName{flex:1;overflow:hidden;text-overflow:ellipsis;}
+  .chip .tag{font-size:9px;color:var(--text-dim);letter-spacing:1px;}
+  .chip.dragging{opacity:.3;}
+  .chip.onclock{border-color:var(--amber);background:rgba(242,167,27,.12);}
+  .codes{font-family:'Oswald',sans-serif;font-weight:600;letter-spacing:.8px;font-size:9px;color:var(--codes);letter-spacing:.5px;margin-left:6px;}
+  .pmstar{color:var(--amber);font-weight:700;}
+  .rdot{font-size:9px;margin-right:5px;line-height:1;}
+  .role-capt{color:var(--role-capt);} .role-medic{color:var(--role-medic);}
+  .role-ff{color:var(--role-ff);} .role-bc{color:var(--text-dim);}
+
+  .chip, .slot{touch-action:pan-y;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;}
+  .grip{display:flex;align-items:center;justify-content:center;min-width:32px;align-self:stretch;
+    color:var(--text-dim);cursor:grab;font-size:16px;line-height:1;letter-spacing:-3px;
+    background:rgba(255,255,255,.05);border-radius:3px;touch-action:none;flex-shrink:0;}
+  .grip:active{cursor:grabbing;}
+  .modal textarea, .modal input{-webkit-user-select:text;user-select:text;}
+  .chip.selected, .slot.selected{outline:2px solid var(--amber);outline-offset:1px;box-shadow:0 0 0 3px rgba(242,167,27,.25);}
+
+  /* ---- BOARD ---- */
+  #board{display:flex;}
+  .shiftCol{flex:1;min-width:396px;border-right:2px solid var(--line);padding:16px 16px 30px;}
+  .shiftCol:last-child{border-right:none;}
+  .shiftHead{display:flex;align-items:center;gap:9px;margin-bottom:6px;padding-bottom:7px;border-bottom:3px solid;min-height:40px;}
+  .shiftCol[data-shift="A"] .shiftHead{border-color:var(--red);}
+  .shiftCol[data-shift="B"] .shiftHead{border-color:var(--blue);}
+  .shiftCol[data-shift="C"] .shiftHead{border-color:var(--green);}
+  .shiftHead .letter{font-size:27px;font-weight:700;line-height:1;flex-shrink:0;}
+  .shiftCol[data-shift="A"] .letter{color:var(--red);}
+  .shiftCol[data-shift="B"] .letter{color:var(--blue);}
+  .shiftCol[data-shift="C"] .letter{color:var(--green);}
+  .shiftHead .name{font-size:13px;letter-spacing:1px;color:var(--text-dim);text-transform:uppercase;white-space:nowrap;}
+  .shiftHead .name .codes{font-size:9px;}
+
+  .shiftHead .slot{background:none;border:none;padding:0;margin:0;min-height:0;flex:1;min-width:0;gap:5px;}
+  .shiftHead .slot .slotLabel{min-width:0;font-size:9px;opacity:.55;letter-spacing:.5px;}
+  .shiftHead .slot .slotName{font-size:12px;text-align:left;color:var(--text);font-weight:500;}
+  .shiftHead .slot .slotName.empty{opacity:.6;}
+  .shiftHead .slot .grip{display:none !important;}
+  .shiftHead .slot .clearBtn{font-size:11px;opacity:.6;}
+  .shiftHead .slot.dragover{outline:1px dashed var(--amber);border-radius:3px;}
+  .shiftHead .slot .codes{font-size:9px;}
+  body.phone .shiftHead .slot{flex:none;justify-content:center;}
+  body.phone .shiftHead .slot .slotLabel{font-size:6.5px;}
+  body.phone .shiftHead .slot .slotName{font-size:7px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;}
+  body.phone .shiftHead .slot .clearBtn{display:none !important;}
+  body.phone.expanded .shiftHead .slot .slotLabel{font-size:10px;}
+  body.phone.expanded .shiftHead .slot .slotName{font-size:12px;}
+  body.phone.expanded .shiftHead .slot .clearBtn{display:inline-block !important;}
+  .sname{display:none;}
+  body.phone .sname{display:inline;} body.phone .pname{display:none;}
+  body.phone.expanded .sname{display:none;} body.phone.expanded .pname{display:inline;}
+  body.phone #footer .sname,body.phone #bottomInfo .sname{display:none;}
+  body.phone #footer .pname,body.phone #bottomInfo .pname{display:inline;}
+  .howRow{font-size:13px;color:var(--text-dim);line-height:1.55;padding:7px 0;border-bottom:1px solid var(--line);}
+  .howRow b{color:var(--text);display:inline;margin-right:5px;}
+  .howRow:last-of-type{border-bottom:none;}
+  #helpBtn{font-weight:700;padding:9px 12px;}
+  .counter{display:flex;gap:18px;margin-bottom:14px;font-size:11px;color:var(--text-dim);letter-spacing:.5px;flex-wrap:nowrap;white-space:nowrap;min-height:18px;align-items:center;text-transform:uppercase;}
+  .counter span{display:inline-flex;align-items:baseline;gap:5px;}
+  .counter b{font-family:'JetBrains Mono';font-size:15px;font-weight:700;}
+  .counter .c-pm b{color:var(--medic);} .counter .c-open b{color:var(--text);}
+  /* Lock header + counter to a consistent height so columns align, without clipping when the roster narrows them */
+  body:not(.phone) .shiftHead{min-height:46px;}
+  body:not(.phone) .shiftHead .slot .slotName{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  body:not(.phone) .counter{min-height:24px;margin-bottom:12px;}
+  .c-pm b{color:var(--role-medic);} .c-rs b{color:var(--red);} .c-ac b{color:var(--amber);} .c-open b{color:var(--text);}
+  /* Roster drawer collapse toggle (sits after AC in the filter row) */
+  #rosterCollapse{margin-left:auto;background:var(--panel-2);border:1px solid var(--line);color:var(--text-dim);
+    font-family:'Oswald';font-size:11px;font-weight:600;letter-spacing:1px;padding:4px 10px;border-radius:3px;
+    line-height:1;cursor:pointer;flex-shrink:0;}
+  #rosterCollapse:hover{color:var(--amber);border-color:var(--amber);}
+  #poolWrap.pool-collapsed #poolHeader,#poolWrap.pool-collapsed #poolSearch{display:none;}
+  #poolWrap.pool-collapsed #filterRow{padding-top:10px;}
+
+  .stationBlock{margin-bottom:18px;padding-bottom:2px;}
+  .stationTitle{font-size:14px;font-weight:600;letter-spacing:1.5px;color:var(--text);text-transform:uppercase;margin-bottom:7px;white-space:nowrap;}
+  .stationTitle.understaffed::after{content:'●';color:var(--red);font-size:9px;margin-left:7px;
+    vertical-align:baseline;line-height:0;position:relative;top:-1px;}
+
+  .slot{background:var(--slot-empty);border:1px solid var(--line);border-radius:4px;padding:7px 10px;margin-bottom:5px;
+    min-height:34px;display:flex;align-items:center;gap:6px;transition:border-color .1s, background .35s;}
+  .slot.filled{background:var(--panel-2);border-color:var(--line);}
+  .slot.dragover{border-color:var(--amber)!important;background:#26221080;}
+  .slot .slotLabel{font-size:11px;letter-spacing:1px;color:var(--text-dim);text-transform:uppercase;min-width:112px;flex-shrink:0;}
+  .slot .slotName{flex:1;font-family:'Oswald',sans-serif;letter-spacing:.3px;font-size:14px;font-weight:600;text-align:right;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .slot .slotName.empty{color:var(--text-dim);opacity:.5;font-style:italic;}
+  /* empty seats carry an invisible character so they keep full height
+     now that the '- open -' text is gone */
+  .slot .slotName.empty::after{content:"\00a0";}
+  .slot .grip{display:none;}
+  .slot.filled .grip{display:flex;}
+  .slot .clearBtn{background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:13px;padding:0 2px;display:none;}
+  .slot.filled .clearBtn{display:inline-block;}
+  .slot.filled .clearBtn:hover{color:var(--red);}
+  @keyframes slotFlash{0%{background:rgba(242,167,27,.55);}100%{background:var(--panel-2);}}
+  .slot.flash{animation:slotFlash .7s ease-out;}
+
+  /* ---- FOOTER (Training / Holding as station-style blocks) ---- */
+  #footer{display:flex;gap:0;padding:0 16px 24px;align-items:flex-start;}
+  .footBlock.stBlock{width:396px;flex:0 0 auto;padding:0 16px;}
+  .footBlock.stBlock .stationTitle{margin-top:14px;}
+  .holblock #holWrap{columns:3;column-gap:24px;max-width:680px;margin-top:12px;}
+
+  /* ---- LEGEND / HOLIDAYS (collapsible bottom info) ---- */
+  #bottomInfo{display:flex;gap:40px;flex-wrap:wrap;border-top:1px solid var(--line);padding:10px 20px 60px;}
+  .infoToggle{cursor:pointer;font-size:12px;letter-spacing:2px;color:var(--text-dim);text-transform:uppercase;
+    font-weight:600;user-select:none;display:inline-flex;align-items:center;gap:6px;}
+  .infoToggle:hover{color:var(--amber);}
+  .infoContent{display:none;margin-top:12px;}
+  .infoContent.open{display:block;}
+  .legRow{font-size:12px;color:var(--text-dim);padding:3px 0;line-height:1.5;}
+  .legRow b{color:var(--text);}
+  .holGroup{margin-bottom:12px;break-inside:avoid;}
+  .holGroupTitle{font-size:11px;font-weight:700;letter-spacing:1px;margin-bottom:4px;}
+  .holGroupTitle.s-A{color:var(--red);} .holGroupTitle.s-B{color:var(--blue);} .holGroupTitle.s-C{color:var(--green);}
+  .hrow{display:flex;align-items:baseline;gap:8px;padding:2px 0;font-size:11px;font-family:'Oswald',sans-serif;letter-spacing:.2px;}
+  .hdate{color:var(--text-dim);min-width:70px;flex-shrink:0;} .hname{color:var(--text);}
+
+  /* ---- VIEW SEGMENTED TOGGLE (Phone | Full) ---- */
+  .viewSeg{display:flex;background:var(--panel-2);border:1px solid var(--line);border-radius:5px;overflow:hidden;flex-shrink:0;}
+  .viewSeg button{background:none;border:none;color:var(--text-dim);font-family:'Oswald';font-weight:700;
+    font-size:11px;letter-spacing:.5px;text-transform:uppercase;padding:8px 14px;cursor:pointer;}
+  .viewSeg button.on{background:var(--amber);color:#161616;}
+
+  /* ---- GHOST + TOAST ---- */
+  .dragGhost{position:fixed;z-index:9999;pointer-events:none;background:var(--amber);color:#161616;
+    font-family:'Oswald',sans-serif;letter-spacing:.5px;font-size:14px;font-weight:700;padding:6px 12px;border-radius:4px;box-shadow:0 6px 18px rgba(0,0,0,.5);letter-spacing:.5px;}
+  #toast{position:fixed;top:104px;left:50%;transform:translateX(-50%);background:var(--red);color:#fff;
+    font-family:'Oswald';font-weight:600;font-size:13px;letter-spacing:.4px;padding:9px 16px;border-radius:6px;
+    box-shadow:0 6px 20px rgba(0,0,0,.5);z-index:300;opacity:0;pointer-events:none;transition:opacity .2s;max-width:min(90vw,520px);text-align:center;}
+  #toast.show{opacity:1;}
+  #toast.info{background:var(--amber);color:#161616;}
+  #toast.error{background:var(--red);color:#fff;}
+
+  /* ---- MODALS ---- */
+  .overlay{position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:200;display:none;align-items:center;justify-content:center;padding:20px;}
+  .overlay.open{display:flex;}
+  .modal{background:var(--panel);border:1px solid var(--line);border-top:4px solid var(--amber);border-radius:6px;
+    width:min(560px,100%);max-height:85vh;overflow-y:auto;padding:22px;}
+  .modal h2{margin:0 0 4px;font-size:20px;letter-spacing:1px;}
+  .modal p.hint{color:var(--text-dim);font-size:13px;margin:0 0 14px;line-height:1.5;}
+  .modal textarea{width:100%;height:150px;background:var(--panel-2);border:1px solid var(--line);border-radius:4px;
+    color:var(--text);font-family:'JetBrains Mono';font-size:12px;padding:10px;resize:vertical;}
+  .modal .row{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;align-items:center;}
+  .modal input[type=text], .modal select{background:var(--panel-2);border:1px solid var(--line);border-radius:4px;
+    color:var(--text);font-family:'Oswald',sans-serif;font-size:14px;padding:8px 10px;}
+  .modal input[type=text]{flex:1;min-width:140px;}
+  #rosterList{margin-top:14px;border-top:1px solid var(--line);max-height:280px;overflow-y:auto;}
+  .rItem{display:flex;align-items:center;gap:8px;padding:7px 2px;border-bottom:1px solid var(--line);font-family:'Oswald',sans-serif;font-size:14px;}
+  .rItem .rName{flex:1;} .rItem .rRank{font-size:10px;letter-spacing:1px;color:var(--text-dim);border:1px solid var(--line);padding:1px 6px;border-radius:3px;}
+  .rItem .rDel{background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:14px;} .rItem .rDel:hover{color:var(--red);}
+  input[type=file]{color:var(--text-dim);font-size:12px;}
+
+  ::-webkit-scrollbar{width:11px;height:11px;}
+  ::-webkit-scrollbar-track{background:var(--panel);}
+  ::-webkit-scrollbar-thumb{background:var(--line);border-radius:5px;}
+
+  /* ---- PHONE MODE: all three shifts, overlay roster ---- */
+  body.phone #swapSideBtn{display:none;}
+  body.phone #main{position:relative;}
+  body.phone #board{display:flex;gap:3px;padding:0 4px;}
+  body.phone #boardZoom{width:100%;}
+  body.phone .shiftCol{display:block;flex:1 1 0;min-width:0;border-right:none;
+    border:1px solid var(--line);border-radius:5px;padding:5px 4px;margin-bottom:8px;}
+  body.phone .shiftHead{flex-direction:column;align-items:center;gap:0;margin-bottom:4px;padding-bottom:4px;border-bottom-width:2px;min-height:34px;justify-content:center;}
+  body.phone .shiftHead .letter{font-size:17px;cursor:pointer;display:inline-flex;align-items:baseline;gap:3px;padding:2px 4px;}
+  .expIcon{display:none;}
+  body.phone .expIcon{display:inline;font-size:8px;color:var(--text-dim);opacity:.65;}
+  body.phone.expanded .shiftHead .letter{font-size:30px;}
+  body.phone.expanded .expIcon{font-size:9px;}
+  body.phone .shiftHead .name{font-size:6.5px;letter-spacing:.2px;text-align:center;white-space:normal;}
+  body.phone .shiftHead .name .codes{display:none;}
+  body.phone .counter{gap:5px;font-size:7px;margin-bottom:5px;justify-content:center;flex-wrap:wrap;white-space:normal;min-height:0;}
+  body.phone .counter b{font-size:9px;margin-left:1px;}
+  body.phone .stationBlock{margin-bottom:6px;}
+  body.phone .stationTitle{font-size:7.5px;letter-spacing:.3px;margin-bottom:2px;}
+  body.phone .slot{min-height:18px;padding:2px 4px;margin-bottom:1.5px;gap:3px;border-radius:2px;}
+  body.phone .slot .slotLabel{display:none;}
+  body.phone .slot .slotName{font-size:11px;text-align:left;}
+  body.phone .slot .grip,body.phone .slot .clearBtn{display:none !important;}
+  body.phone .codes{font-size:6px;margin-left:3px;}
+  body.phone .rdot{font-size:5.5px;margin-right:3px;}
+  /* phone footer: Training/Holding as compact station-style blocks side by side */
+  body.phone #footer{gap:0;padding:0 4px 20px;}
+  body.phone .footBlock.stBlock{width:50%;padding:0 4px;}
+  body.phone .footBlock.stBlock .stationTitle{font-size:12px;margin-top:10px;}
+  body.phone #bottomInfo{padding:8px 12px 96px;}
+  body.phone #bottomInfo .infoToggle{font-size:10px;}
+  /* expanded single shift */
+  body.phone.expanded .shiftCol{display:none;}
+  body.phone.expanded .shiftCol.active-shift{display:block;}
+  body.phone.expanded .shiftHead .name{font-size:11px;}
+  body.phone.expanded .counter{font-size:12px;gap:12px;} body.phone.expanded .counter b{font-size:15px;}
+  body.phone.expanded .stationTitle{font-size:14px;margin-bottom:6px;}
+  body.phone.expanded .slot{min-height:36px;padding:7px 9px;margin-bottom:5px;}
+  body.phone.expanded .slot .slotLabel{display:inline;font-size:10px;min-width:88px;}
+  body.phone.expanded .slot .slotName{font-size:13px;text-align:right;}
+  body.phone.expanded .slot.filled .grip{display:flex !important;}
+  body.phone.expanded .slot.filled .clearBtn{display:inline-block !important;}
+  body.phone.expanded .codes{font-size:10px;} body.phone.expanded .rdot{font-size:9px;}
+  /* overlay roster — one shift-column wide */
+  body.phone #poolWrap{position:absolute;top:0;bottom:0;left:0;width:33.333%;min-width:96px;height:auto;
+    z-index:120;opacity:0;pointer-events:none;border-right:none;
+    border-left:2px solid var(--amber);border-right:2px solid var(--amber);
+    box-shadow:0 0 26px rgba(0,0,0,.75);
+    transition:transform .24s cubic-bezier(.2,.8,.3,1), opacity .18s ease;
+    will-change:transform;touch-action:none;}
+  body.phone #poolWrap.open{opacity:1;pointer-events:auto;}
+  body.phone #poolWrap.dragging{transition:transform .12s cubic-bezier(.2,.9,.3,1);opacity:.92;box-shadow:0 0 34px rgba(0,0,0,.85);}
+  body.phone .shiftCol.snap-target{outline:2px solid var(--amber);outline-offset:-1px;}
+  #dragGrip{display:none;}
+  /* manual minimize: collapse the tool row + shrink title into a slim strip */
+  body.chrome-min .btnRow{display:none;}
+  body.chrome-min #topbar{padding-top:6px;padding-bottom:6px;}
+  body.chrome-min .brand h1{font-size:13px;color:var(--text-dim);letter-spacing:1px;}
+  body.chrome-min #minBtn{background:var(--panel-2);border-color:var(--amber);color:var(--amber);}
+  /* ---- PHONE LANDSCAPE: compact top bar (wraps), bigger board text ---- */
+  body.phone.landscape #topbar{padding:6px 12px;}
+  body.phone.landscape .btn{padding:6px 9px;font-size:11px;}
+  body.phone.landscape .zoomGroup button{padding:2px 8px;font-size:14px;}
+  body.phone.landscape .zoomGroup .zlabel{font-size:10px;min-width:34px;}
+  body.phone.landscape .shiftHead .letter{font-size:20px;}
+  body.phone.landscape .shiftHead .name{font-size:8px;}
+  body.phone.landscape .counter{font-size:8.5px;} body.phone.landscape .counter b{font-size:11px;}
+  body.phone.landscape .stationTitle{font-size:9.5px;}
+  body.phone.landscape .slot{min-height:19px;padding:2.5px 5px;}
+  body.phone.landscape .slot .slotName{font-size:11px;}
+  body.phone.landscape .codes{font-size:7.5px;}
+  body.phone.landscape .rdot{font-size:7px;}
+  body.phone.landscape .chip{font-size:10px;padding:4px 5px;}
+  body.phone.landscape #poolHeader .label{font-size:8px;}
+  body.phone #dragGrip{display:flex;align-items:center;justify-content:center;gap:2px;
+    color:var(--text-dim);font-size:11px;letter-spacing:-2px;padding:5px 0 2px;cursor:grab;touch-action:none;
+    border-bottom:1px solid var(--line);}
+  body.phone #dragGrip:active{cursor:grabbing;color:var(--amber);}
+  body.phone #poolHeader{padding:6px 5px 3px;}
+  body.phone #poolHeader .label{font-size:7px;letter-spacing:.8px;}
+  body.phone #poolCount{font-size:8px;}
+  body.phone #swapBtn{display:block;}
+  body.phone #poolSearch{margin:5px;width:calc(100% - 10px);padding:5px;font-size:10px;}
+  body.phone #filterRow{padding:0 5px 4px;gap:3px;}
+  body.phone .filterBtn{font-size:8px;padding:3px 5px;}
+  body.phone #rosterCollapse{font-size:8px;padding:3px 6px;}
+  body.phone #pool{padding:2px 5px 12px;gap:2px;}
+  body.phone .chip{font-size:8px;padding:3px;gap:2px;white-space:nowrap;}
+  body.phone .chip .tag{display:none;} body.phone .chip .grip{display:none;}
+  body.phone .chip .codes{font-size:6px;margin-left:2px;}
+  body.phone #viewHint{padding:0 5px 5px;font-size:8px;}
+  /* phone bottom command bar: compact controls */
+  body.phone #cmdBar{padding:6px 10px;gap:8px;}
+  body.phone #rosterBtn{padding:10px 14px;font-size:13px;}
+  body.phone #shiftBtn{display:flex;padding:10px 12px;font-size:11px;}
+  body.phone .clkChip #statusName{font-size:13px;}
+  body.phone.landscape #cmdBar{padding:5px 12px;}
+  #swapBtn{display:none;background:var(--p2);border:1px solid var(--amber);color:var(--amber);
+    border-radius:3px;font-size:11px;padding:1px 7px;cursor:pointer;line-height:1.4;}
+  #poolHeader .hdrow{display:flex;align-items:center;justify-content:space-between;gap:6px;}
+
+  @media print{
+    #topbar,#cmdBar,#poolWrap,#toast,.overlay{display:none !important;}
+    html,body{height:auto;overflow:visible;background:#fff;color:#000;}
+    #main{display:block;height:auto;} #boardArea{overflow:visible;height:auto;}
+    #boardZoom{zoom:1 !important;width:auto;} #board{display:block;}
+    .shiftCol{min-width:0;width:100%;border:none;border-bottom:2px solid #000;page-break-inside:avoid;padding:10px 0;display:block !important;}
+    .shiftHead .name{color:#000;} .slot{background:#fff;border:1px solid #999;} .slot .slotName.empty{color:#888;}
+    .codes{color:#555;} .counter{color:#000;}
+    .role-capt{color:#b83227 !important;} .role-medic{color:#1f6fb2 !important;} .role-ff{color:#9a7d0a !important;} .role-bc{color:#000 !important;}
+    #bottomInfo{display:block !important;} #bottomInfo .infoContent{display:block !important;} #footer,#bottomInfo{border-color:#999;}
+  }
+  /* ============================================================
+     SIDE BUILD — mobile only. Maximize space, simplify.
+     ============================================================ */
+  html,body{ padding-top:env(safe-area-inset-top); padding-bottom:env(safe-area-inset-bottom); }
+
+  /* ---- Floating top layer: survives a full minimize ---- */
+  #floatLayer{position:fixed;top:calc(env(safe-area-inset-top) + var(--fTop, 4px));right:6px;z-index:500;
+    display:flex;align-items:center;gap:5px;pointer-events:none;transition:top .15s;}
+  #floatLayer > *{pointer-events:auto;}
+  #floatName{display:none;align-items:center;gap:5px;background:#0e1113;
+    border:1px solid rgba(242,167,27,.55);border-radius:20px;padding:4px 11px;
+    box-shadow:0 3px 12px rgba(0,0,0,.5);}
+  #floatName .fdot{width:6px;height:6px;border-radius:50%;background:var(--amber);flex-shrink:0;}
+  #floatNameText{font-family:'Oswald',sans-serif;letter-spacing:.3px;font-size:13px;font-weight:700;color:#fff;
+    white-space:nowrap;max-width:150px;overflow:hidden;text-overflow:ellipsis;}
+  #fBars,#fHead{width:26px;height:26px;flex-shrink:0;border-radius:50%;
+    background:#0e1113;border:1px solid rgba(242,167,27,.5);color:var(--amber);
+    font-size:11px;line-height:1;display:flex;align-items:center;justify-content:center;
+    padding:0;cursor:pointer;}
+  #fBars:active,#fHead:active{background:var(--amber);color:#161616;}
+  /* when parked in the top bar they match the other bar buttons */
+  .corner #fHead,.corner #fBars{width:auto;height:auto;border-radius:5px;
+    background:rgba(242,167,27,.14);border:1px solid rgba(242,167,27,.55);color:var(--amber);
+    font-size:12px;font-weight:700;padding:8px 12px;}
+  .corner #fHead:active,.corner #fBars:active{background:var(--amber);color:#161616;}
+  .corner #fHead.off{opacity:.75;}
+  /* undo/redo when floating alongside the pill */
+  #floatLayer .cmdUndo{display:flex;gap:5px;}
+  #floatLayer .cmdUndo button{width:23px;height:23px;padding:0;border-radius:50%;
+    background:#0e1113;border:1px solid rgba(242,167,27,.5);color:var(--amber);
+    font-size:12px;line-height:1;display:flex;align-items:center;justify-content:center;}
+  #fHead.off{opacity:.55;}
+  /* when bars are hidden, the floating name is the only place the on-clock name lives */
+  body.barsOff #topbar,body.barsOff #cmdBar{display:none !important;}
+  body.barsOff #floatName{display:flex;}
+  /* slim gutter so the floating cluster never overlaps the board */
+  body.barsOff #boardZoom{padding-top:30px;}
+  body.barsOff #floatName{padding:2px 9px;}
+  body.barsOff #floatNameText{font-size:11px;max-width:120px;}
+  body.barsOff #fBars,body.barsOff #fHead{width:23px;height:23px;font-size:10px;}
+
+  /* ---- Shift columns outlined in their own color ---- */
+  body.phone .shiftCol[data-shift="A"]{border:2px solid var(--red);}
+  body.phone .shiftCol[data-shift="B"]{border:2px solid var(--blue);}
+  body.phone .shiftCol[data-shift="C"]{border:2px solid var(--green);}
+  body.phone .shiftCol{border-radius:6px;}
+
+  /* ---- Headers hidden by default: no shift letter, no BC, no counts ---- */
+  body.headsOff .shiftHead,body.headsOff .counter{display:none;}
+  body.headsOff .shiftCol{padding-top:5px;}
+
+  /* ---- Placed names brighter + easier to read ---- */
+  body.phone .slot.filled{background:var(--panel-2);border-color:var(--line);}
+  body.phone .slot.filled .slotName{color:#fff;font-weight:700;}
+  body.phone .slot.filled .codes{color:rgba(242,167,27,.85);}
+  body.phone .slot:not(.filled) .slotName{color:#565c61;}
+
+  /* ---- Roster add: quals picker ---- */
+  .qualPick{display:inline-flex;gap:10px;align-items:center;}
+  .qualPick label{display:inline-flex;align-items:center;gap:4px;font-size:12px;
+    letter-spacing:.6px;color:var(--text-dim);text-transform:uppercase;cursor:pointer;}
+  .qualPick input{accent-color:var(--amber);width:15px;height:15px;}
+
+  /* ---- Side build is mobile only: drop the Phone|Full switch ---- */
+  /* ============================================================
+     GRID VIEW - shifts as rows, stations across.
+     A/B/C fill the screen; Training + Holding ("D") sit below the fold.
+     ============================================================ */
+  body.gridMode #boardZoom{width:100%;height:auto;}
+  /* mBoard is a plain block so the D row can sit BELOW the screenful instead of
+     competing with A/B/C for the same fixed height (that was squeezing the rows). */
+  body.gridMode #board.mBoard{display:block;padding:4px;height:auto;gap:0;}
+  body.gridMode .mScreen{display:flex;flex-direction:column;gap:3px;}
+
+  .mHead{display:flex;gap:3px;flex-shrink:0;}
+  .mCorner{flex:0 0 42px;}
+  .mH{flex:1;min-width:0;text-align:center;font-size:7.5px;font-weight:700;letter-spacing:.5px;
+    text-transform:uppercase;color:var(--amber);background:var(--panel);border:1px solid var(--line);
+    border-radius:3px;padding:2px 1px;white-space:nowrap;overflow:hidden;}
+
+  .mRow{display:flex;gap:3px;flex:1 1 0;min-height:66px;}
+  .mRow[data-shift="A"] .mLab{border-left:3px solid var(--red);}
+  .mRow[data-shift="B"] .mLab{border-left:3px solid var(--blue);}
+  .mRow[data-shift="C"] .mLab{border-left:3px solid var(--green);}
+  .mRow[data-shift="A"] .mCell{border-color:rgba(200,54,44,.4);}
+  .mRow[data-shift="B"] .mCell{border-color:rgba(79,131,194,.4);}
+  .mRow[data-shift="C"] .mCell{border-color:rgba(63,174,90,.4);}
+
+  .mLab{flex:0 0 46px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;
+    background:var(--line-soft);border:1px solid var(--line);border-radius:4px;padding:2px 1px;overflow:hidden;}
+  .mLab .mL{font-size:16px;font-weight:700;line-height:1.05;}
+  body:not(.headsOff) .mLab .mL{font-size:12px;}
+  .mRow[data-shift="A"] .mL{color:var(--red);}
+  .mRow[data-shift="B"] .mL{color:var(--blue);}
+  .mRow[data-shift="C"] .mL{color:var(--green);}
+  .mLab .mCnt{display:flex;flex-wrap:wrap;justify-content:center;gap:0 4px;font-size:5.5px;color:var(--text-dim);
+    text-transform:uppercase;letter-spacing:.2px;line-height:1.3;}
+  .mLab .mCnt b{font-family:'JetBrains Mono';font-size:7px;margin-left:2px;}
+  .mLab .slot{background:none;border:none;padding:0;margin:1px 0 0;min-height:0;justify-content:center;}
+  .mLab .slot .slotLabel{display:none;}
+  .mLab .slot .slotName{font-size:6.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;}
+  .mLab .slot .codes{display:none;}
+
+  .mCell{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;
+    background:var(--line-soft);border:1px solid var(--line);border-radius:4px;padding:2px;}
+  .mCellTtl{font-size:6.5px;line-height:1;margin:0 0 1px;color:var(--text-dim);text-align:center;flex-shrink:0;}
+  /* ABC rows: station name lives in the header row only. Title becomes a slim
+     understaffed bar so the red-dot warning survives without eating a line. */
+  body.gridMode .mRow:not(.dRow) .mCellTtl{font-size:0;height:3px;margin:0 0 2px;
+    border-radius:2px;background:transparent;}
+  body.gridMode .mRow:not(.dRow) .mCellTtl.understaffed{background:var(--red);}
+  body.gridMode .mRow:not(.dRow) .mCellTtl.understaffed::after{display:none;}
+  body.gridMode .mCell .slot{flex:1 1 0;margin:0;min-height:0;padding:1px 3px;gap:2px;}
+  body.gridMode .mCell .slot .slotLabel{display:none;}
+  body.gridMode .mCell .slot .slotName{font-size:7.5px;}
+  body.gridMode .mCell .slot .codes{font-size:5.5px;}
+  body.gridMode .mCell .slot .clearBtn{display:none;}
+  body.gridMode .mLab .slot{min-height:0;margin:1px 0 0;}
+  /* hard stop: nothing may bleed across a row boundary */
+  body.gridMode .mRow,body.gridMode .mCell,body.gridMode .mLab{overflow:hidden;}
+
+  /* the "D shift" strip - only reachable by scrolling, exactly as intended */
+  /* D row lives past the bottom edge no matter what - scroll to reach it */
+  body.gridMode .mRow.dRow{display:flex;gap:3px;min-height:78px;margin-top:14px;
+    border-top:2px dashed var(--line);padding-top:10px;}
+  .mRow.dRow .mLab{border-left:3px solid var(--text-dim);}
+  .mRow.dRow .mL{color:var(--text-dim);font-size:14px;}
+  .mRow.dRow .mCnt{font-size:5.5px;text-align:center;}
+  .mGhost{background:none;border-color:transparent;}
+
+  /* headers-off also strips the counts + BC out of the grid row labels */
+  body.headsOff .mLab .mCnt,body.headsOff .mLab .slot{display:none;}
+  body.headsOff .mLab{flex:0 0 26px;}
+  body.headsOff .mCorner{flex:0 0 26px;}
+  body.headsOff .mLab .mL{font-size:15px;}
+
+  /* grid mode has no per-shift expand */
+  body.gridMode .expIcon{display:none;}
+  /* WIDE is a fixed one-screen layout - zoom/fit controls are removed entirely */
+  body.gridMode .zoomGroup,body.gridMode #fitBtn,body.gridMode #fitAllBtn{display:none !important;}
+  /* ============================================================
+     WIDE - one thin strip carries everything. No minimize, no bottom bar.
+     Tuned for landscape; portrait is allowed to wrap.
+     ============================================================ */
+  body.gridMode #cmdBar{display:none !important;}
+  body.gridMode #fBars{display:none !important;}   /* no minimize in Wide */
+  body.gridMode #floatName{display:none !important;}
+  body.gridMode #topbar{padding:3px 8px;column-gap:6px;row-gap:3px;flex-wrap:wrap;}
+  body.gridMode .brand h1{font-size:12px;letter-spacing:.8px;}
+  body.gridMode .clkChip{padding:2px 9px;}
+  body.gridMode .clkChip #statusLabel{display:inline;font-size:7px;letter-spacing:.8px;
+    text-transform:uppercase;color:var(--amber);font-weight:600;}
+  body.gridMode .clkChip #statusName{font-size:11px;}
+  body.gridMode .btnRow{gap:5px;}
+  body.gridMode .viewSeg button{font-size:9px;padding:4px 9px;}
+  body.gridMode .cmdUndo button{padding:4px 9px;font-size:12px;}
+  body.gridMode #rosterBtn{padding:5px 10px;font-size:10px;}
+  body.gridMode #shiftBtn{padding:5px 9px;font-size:9px;}
+  body.gridMode .corner .btn{padding:5px 9px;font-size:10px;}
+  body.gridMode .corner #fHead{padding:5px 9px;font-size:11px;}
+  /* landscape is the priority: force the strip to a single row */
+  body.gridMode.landscape #topbar{flex-wrap:nowrap;overflow:visible;}
+  body.gridMode.landscape #topbar > *{min-width:0;}
+  body.gridMode .menuDrop{z-index:600;}
+  body.gridMode.landscape .brand h1{font-size:11px;}
+  body.gridMode.landscape .corner{margin-left:auto;}
+  /* below-fold row has no "D" label - just a spacer to keep columns aligned */
+  .mLabGhost{background:none !important;border-color:transparent !important;}
+  /* ============================================================
+     WIDE typography - condensed font buys ~30% more characters at
+     the same width, which is what makes the big size possible.
+     ============================================================ */
+  body.gridMode .mCell .slot .slotName{font-size:12px;
+    letter-spacing:.2px;font-weight:600;}
+  body.gridMode .mCell .slot.filled .slotName{font-weight:700;color:#fff;}
+  body.gridMode .mCell .slot .codes{display:none;}      /* role dot carries the role */
+  body.gridMode .mCell .slot .rdot{font-size:8px;}
+  body.gridMode .mCell .slot{gap:4px;padding:1px 5px;}
+
+  /* shift column collapses by default in Wide; the row's colored edge identifies it.
+     The header toggle brings it back. */
+  /* WIDE keeps the shift letter and BC; the toggle strips the PM/RS/AC counts,
+     which are the part that reads as clutter on a TV. */
+  body.gridMode.headsOff .mLab .mCnt{display:none;}
+  body.gridMode .mLab .mL{font-size:17px;}
+  body.gridMode .mLab .slot .slotName{font-size:8px;}
+  body.gridMode .mH{font-size:10px;}
+
+  /* ============================================================
+     TOP BAR ORDER (both views)
+     identity -> who's up -> view -> actions -> history -> display -> help
+     ============================================================ */
+  #topbar .brand{order:1;}
+  #topbar .clkChip{order:2;}
+  #topbar .btnRow{order:3;}
+  #topbar .cmdActions{order:4;}
+  #topbar .cmdUndo{order:5;}
+  #topbar .corner{order:6;margin-left:auto;}
+  #cmdBar .cmdUndo{order:1;} #cmdBar .cmdActions{order:2;margin-left:auto;}
+  /* code editor inside Edit Roster */
+  .qEdit{display:inline-flex;gap:4px;margin-left:auto;}
+  .qBtn{background:var(--panel-2);border:1px solid var(--line);color:var(--text-dim);
+    font-family:'Oswald',sans-serif;font-size:10px;font-weight:700;letter-spacing:.8px;
+    padding:3px 8px;border-radius:4px;cursor:pointer;}
+  .qBtn.on{background:rgba(242,167,27,.16);border-color:var(--amber);color:var(--amber);}
+  .rItem .rName{flex:0 1 auto;}
+  .rItem .rRank{font-family:'Oswald',sans-serif;font-size:10px;letter-spacing:1px;color:var(--text-dim);}
+  /* Tall portrait only: ▤ ⤢ ? ⋯ ride on the title row so the tool row
+     is the only extra line. Scoped so Wide and landscape are untouched. */
+  /* #topbar rules carry an ID, so these must too or they lose the cascade. */
+  body:not(.gridMode):not(.landscape) #topbar .brand{order:1;}
+  body:not(.gridMode):not(.landscape) #topbar .clkChip{order:2;}
+  body:not(.gridMode):not(.landscape) #topbar .corner{order:3;margin-left:auto;}
+  body:not(.gridMode):not(.landscape) #topbar .btnRow{order:4;flex-basis:100%;}
+  body:not(.gridMode):not(.landscape) #topbar .cmdActions{order:5;}
+  body:not(.gridMode):not(.landscape) #topbar .cmdUndo{order:6;}
+  body:not(.gridMode):not(.landscape) #topbar .corner .btn{padding:6px 9px;font-size:11px;}
+  body:not(.gridMode):not(.landscape) #topbar .corner #fHead,
+  body:not(.gridMode):not(.landscape) #topbar .corner #fBars{padding:6px 9px;font-size:11px;}
+  /* ============================================================
+     Uniform seat height - a filled seat holds a role dot (5.5px), a name (11px)
+     and codes (9px); an empty one holds a single space. Different tallest-child
+     metrics made filled rows taller, so columns drifted apart as people were
+     placed. Pinning every child to one line box makes all seats identical.
+     ============================================================ */
+  body.phone .slot{min-height:20px;align-items:center;}
+  body.phone .slot > *{line-height:14px;}
+  body.phone.landscape .slot{min-height:20px;}
+  body.phone.landscape .slot > *{line-height:14px;}
+  body.phone.expanded .slot{min-height:34px;}
+  body.phone.expanded .slot > *{line-height:20px;}
+
+  /* on-the-clock name gives a slow pulse so it's easy to find */
+  @keyframes clkPulse{
+    0%,84%,100%{box-shadow:0 0 0 0 rgba(242,167,27,0);border-color:rgba(242,167,27,.32);}
+    92%{box-shadow:0 0 0 5px rgba(242,167,27,.22);border-color:rgba(242,167,27,.95);}
+  }
+  .clkChip{animation:clkPulse 4.5s ease-in-out infinite;}
+  #floatName{animation:clkPulse 4.5s ease-in-out infinite;}
+  @media (prefers-reduced-motion: reduce){
+    .clkChip,#floatName{animation:none;}
+  }
+
+  /* TALL bottom bar: undo/redo to the right (thumb side), roster/shift left */
+  body.phone:not(.gridMode) #cmdBar .cmdActions{order:1;margin-left:0;}
+  body.phone:not(.gridMode) #cmdBar .cmdUndo{order:2;margin-left:auto;}
+  /* ============================================================
+     Hard-pin seat + title geometry. min-height still let a filled seat grow
+     past an empty one, and the understaffed dot inflated B's titles, so the
+     columns drifted apart. Fixed heights make drift impossible.
+     ============================================================ */
+  body.phone .slot{height:21px;min-height:21px;align-items:center;overflow:hidden;}
+  body.phone .slot > *{line-height:13px;}
+  body.phone .stationTitle{line-height:13px;height:16px;overflow:hidden;}
+  body.phone.landscape .slot{height:21px;min-height:21px;}
+  body.phone.expanded .slot{height:34px;min-height:34px;}
+  body.phone.expanded .slot > *{line-height:20px;}
+  body.phone.expanded .stationTitle{height:auto;line-height:1.3;}
+
+  /* pulse 25% quicker */
+  .clkChip,#floatName{animation-duration:3.4s !important;}
+</style>
+</head>
+<body>
+
+<!-- FLOATING TOP LAYER — always visible, survives full minimize -->
+<div id="floatLayer">
+  <div id="floatName"><span class="fdot"></span><span id="floatNameText">—</span></div>
+  <button id="fHead" onclick="toggleHeads()" title="Show/hide shift headers">▤</button>
+  <button id="fBars" onclick="toggleBars()" title="Hide/show bars">⤢</button>
+</div>
+
+<div id="topbar">
+  <div class="brand"><h1>CCFD MOCK <span>BID</span></h1></div>
+  <div class="clkChip">
+    <span id="statusLabel">On the clock</span>
+    <span id="statusName">—</span>
+    <button id="statusCancel" onclick="cancelSelection()">Cancel</button>
+  </div>
+  <div class="btnRow">
+    <div class="toolGroup">
+      <div class="zoomGroup" id="zoomGroup">
+        <button onclick="zoomStep(-0.1)" title="Zoom out">−</button>
+        <span class="zlabel" id="zlabel">100%</span>
+        <button onclick="zoomStep(0.1)" title="Zoom in">+</button>
+      </div>
+      <button class="btn ghost" id="fitBtn" onclick="fitBoard()">Fit</button>
+      <button class="btn ghost" id="fitAllBtn" onclick="fitAll()" title="Fit the whole bid on screen">Fit All</button>
+      <div class="viewSeg" id="viewSeg">
+        <button id="segPhone" onclick="setBoardMode('cols')">Tall</button>
+        <button id="segFull" onclick="setBoardMode('grid')">Wide</button>
+      </div>
+    </div>
+  </div>
+  <div class="corner">
+    <button class="btn ghost" id="helpBtn" onclick="openHowTo()" title="How to use">?</button>
+    <div class="menuWrap">
+      <button class="btn ghost" onclick="toggleMenu()" title="More"><span class="bi">⋯</span><span class="bt"> More</span></button>
+      <div id="menuDrop" class="menuDrop">
+        <div class="mHead">Share</div>
+        <button onclick="copyLink();closeMenu()">Copy Share Link</button>
+        <button onclick="copyBidText();closeMenu()">Copy as Text</button>
+        <div class="mHead">Board</div>
+        <button onclick="openSave();closeMenu()">Save Bid</button>
+        <button onclick="openLoad();closeMenu()">Load Bid</button>
+        <button onclick="window.print();closeMenu()">Print</button>
+        <button onclick="openRoster();closeMenu()">Edit Roster</button>
+        <div class="mHead">Rules</div>
+        <button id="balanceBtn" onclick="toggleBalance()">Balance Paramedics: On</button>
+        <div class="mHead">Reset</div>
+        <button class="mDanger" onclick="resetBoard();closeMenu()">Reset Board</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="main">
+  <div id="poolWrap" class="pool-collapsed">
+    <div id="poolHeader">
+      <div class="hdrow">
+        <div>
+          <div class="label">Available Roster</div>
+          <div id="poolCount"></div>
+        </div>
+      </div>
+    </div>
+    <input id="poolSearch" placeholder="Search name..." oninput="renderPool()">
+    <div id="filterRow">
+      <button class="filterBtn active" data-f="all" onclick="setFilter('all')">All</button>
+      <button class="filterBtn" data-f="PM" onclick="setFilter('PM')">PM</button>
+      <button class="filterBtn" data-f="RS" onclick="setFilter('RS')">RS</button>
+      <button class="filterBtn" data-f="AC" onclick="setFilter('AC')">AC</button>
+      <button id="rosterCollapse" onclick="toggleRosterCollapse()" title="Show/hide header + search">▼</button>
+    </div>
+    <div id="viewHint">Viewing only — switch to All to place people.</div>
+    <div id="pool"></div>
+  </div>
+
+  <div id="boardArea">
+    <div id="boardZoom">
+      <div id="board"></div>
+      <div id="footer"></div>
+    </div>
+    <div id="bottomInfo">
+      <div>
+        <div class="infoToggle" onclick="toggleInfo('legendList','legendArrow')"><span id="legendArrow">▸</span> Legend</div>
+        <div id="legendList" class="infoContent">
+          <div class="legRow"><span class="rdot role-capt">●</span> Captain (red)</div>
+          <div class="legRow"><span class="rdot role-medic">●</span> Paramedic (blue) — any firefighter with PM</div>
+          <div class="legRow"><span class="rdot role-ff">●</span> Firefighter (yellow)</div>
+          <div class="legRow"><span class="codes">PM<span class="pmstar">*</span></span> — medic in a Captain seat; still <b>not</b> counted in that shift's PM total</div>
+          <div class="legRow">Red dot after a station name — that rig has no paramedic assigned</div>
+          <div class="legRow">Per-shift counts: <b>PM</b> (excludes Capt seat) · <b>RS</b> · <b>AC</b> · <b>Open</b> seats</div>
+        </div>
+      </div>
+      <div>
+        <div class="infoToggle" onclick="toggleInfo('holList','holArrow')"><span id="holArrow">▸</span> Holidays 2027</div>
+        <div id="holList" class="infoContent"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="cmdBar">
+  <div class="cmdUndo">
+    <button id="cbUndo" onclick="undo()" title="Undo">↶</button>
+    <button id="cbRedo" onclick="redo()" title="Redo">↷</button>
+  </div>
+  <div class="cmdActions">
+    <button id="rosterBtn" onclick="toggleRoster()">☰ Show Roster</button>
+    <button id="shiftBtn" onclick="swapRosterSide()" title="Move roster over a shift">⇄ Shift <span id="shiftPills"><i></i><i></i><i></i></span></button>
+  </div>
+</div>
+<div id="toast"></div>
+
+<div class="overlay" id="howtoOverlay">
+  <div class="modal">
+    <h2>How to use the bid board</h2>
+    <p class="hint">A tool for running CCFD's annual station bid — place people into seats, shift by shift. Everyone gets their own board, so nothing you do affects anyone else.</p>
+    <div class="row" style="margin:0 0 14px;"><button class="btn edit" onclick="dismissHowTo()">Got it</button></div>
+
+    <div class="howRow"><b>Placing someone</b> Whoever is up next is already selected — their name shows in the amber pill up top. Tap the seat you want them in. Tap any name in the roster to bid out of order.</div>
+    <div class="howRow"><b>Moving / removing</b> Tap someone already on the board to pick them up, then tap where they go. The ✕ on a seat clears it. Filled seats are lighter than empty ones, and a seat flashes when someone lands in it.</div>
+    <div class="howRow"><b>Tall vs Wide</b> <b>Tall</b> is the standard board — three shift columns side by side, and the one to bid from on your phone. <b>Wide</b> turns it sideways: shifts become rows (A/B/C down the left) with the rigs running across, so far more of the bid fits at once. Wide is the one to use in landscape or mirrored to a TV.</div>
+    <div class="howRow"><b>The two buttons: ▤ and ⤢</b> <b>⤢</b> hides the bars completely so the board gets the whole screen — tap again to bring them back. Who's on the clock stays visible either way. <b>▤</b> hides the PM/RS/AC counts, which are the part that reads as clutter from across a room. Shift letters and BCs stay put.</div>
+    <div class="howRow"><b>Which shift is which</b> Each column and row is outlined in its own color — <b style="color:#c8362c">A red</b>, <b style="color:#4f83c2">B blue</b>, <b style="color:#3fae5a">C green</b>.</div>
+    <div class="howRow"><b>Floats, Training and Holding</b> Floats sit with their shift. In Wide, <b>Training and Holding are below the fold — scroll down</b> to reach them, so the three shifts get the whole screen.</div>
+    <div class="howRow"><b>Seeing more</b> <b>Fit</b> fits the width, <b>Fit All</b> fits the whole bid on screen, and −/+ zoom. Your zoom sticks when you hide the bars. In Tall, tap a shift letter (A/B/C) to blow that shift up; tap again to go back. Wide is a fixed one-screen layout, so it has no zoom.</div>
+    <div class="howRow"><b>The roster</b> <b>Show Roster</b> opens it. <b>⇄ Shift</b> slides it across so it sits over A, then B, then C. The small button next to <b>AC</b> hides the search bar and count for more room.</div>
+    <div class="howRow"><b>Why won't someone drop in?</b> The rules are built in: captains only in captain seats, only AC-qualified firefighters can act as captain, the Paramedic seat needs a medic, and every rig has to get a medic before anyone doubles up.</div>
+    <div class="howRow"><b>Balance Paramedics</b> (in ⋯ Menu) keeps medics even across the three shifts and tells you which shift to bid instead. It steps aside when a rig has no medic yet — covering every rig comes first.</div>
+    <div class="howRow"><b>Roster changes</b> <b>Edit Roster</b> (in ⋯ Menu) — add someone as <i>Last, First</i> with their rank, and tap <b>PM / RS / AC</b> on any row to turn codes on or off for people already on the list.</div>
+    <div class="howRow"><b>Sharing</b> <b>Copy Share Link</b> gives a link that opens your exact bid. <b>Copy as Text</b> gives a plain list you can paste in a group text.</div>
+    <div class="howRow"><b>Full screen on your phone</b> Open the board in Safari, tap Share, then <b>Add to Home Screen</b>. Launching from that icon drops the address bar and tabs entirely — with ⤢ it's all board.</div>
+
+    <p class="hint" style="margin-top:14px;">Tap <b>?</b> up top to see this again anytime.</p>
+    <div class="row"><button class="btn edit" onclick="dismissHowTo()">Got it</button></div>
+  </div>
+</div>
+
+<div class="overlay" id="confirmOverlay">
+  <div class="modal">
+    <h2>Reset board?</h2>
+    <p class="hint">This clears every name off the board. Your roster stays as-is.</p>
+    <div class="row">
+      <button class="btn reset" onclick="doReset()">Clear Board</button>
+      <button class="btn ghost" onclick="closeModal('confirmOverlay')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="saveOverlay">
+  <div class="modal">
+    <h2>Save Bid</h2>
+    <p class="hint">Copy this bid code (Notes, email to yourself) or download it. To restore later use <b>Load Bid</b>. Saves the whole board and roster.</p>
+    <textarea id="saveText" readonly></textarea>
+    <div class="row">
+      <button class="btn save" onclick="copySave()">Copy Code</button>
+      <button class="btn load" onclick="downloadSave()">Download File</button>
+      <button class="btn reset" onclick="closeModal('saveOverlay')">Close</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="loadOverlay">
+  <div class="modal">
+    <h2>Load Bid</h2>
+    <p class="hint">Paste a saved bid code and tap Apply — or choose a saved <b>.json</b> file. Replaces the current board.</p>
+    <textarea id="loadText" placeholder="Paste bid code here..."></textarea>
+    <div class="row">
+      <button class="btn save" onclick="applyPasted()">Apply Pasted Code</button>
+      <input type="file" id="loadFile" accept=".json,application/json" onchange="applyFile(event)">
+    </div>
+    <div class="row"><button class="btn reset" onclick="closeModal('loadOverlay')">Close</button></div>
+  </div>
+</div>
+
+<div class="overlay" id="rosterOverlay">
+  <div class="modal">
+    <h2>Edit Roster</h2>
+    <p class="hint">Add or remove people. Type names as <b>Last, First</b>. Removing someone placed clears them off the board. Tick the codes (PM / RS / AC) when you add someone.</p>
+    <div class="row">
+      <input type="text" id="newName" placeholder="Last, First">
+      <select id="newRank">
+        <option value="ff">Firefighter</option>
+        <option value="captain">Captain</option>
+        <option value="bc">Battalion Chief</option>
+      </select>
+      <span class="qualPick">
+        <label><input type="checkbox" id="qPM"> PM</label>
+        <label><input type="checkbox" id="qRS"> RS</label>
+        <label><input type="checkbox" id="qAC"> AC</label>
+      </span>
+      <button class="btn edit" onclick="addPerson()">Add</button>
+    </div>
+    <div id="rosterList"></div>
+    <div class="row"><button class="btn reset" onclick="closeModal('rosterOverlay')">Close</button></div>
+  </div>
+</div>
+
+<script>
+/* ================= ROSTER ================= */
+let roster = [
+  {name:"Pera, Casey", rank:"bc", quals:["RS"]},
+  {name:"Murphy, Pat", rank:"bc", quals:["RS"]},
+  {name:"Vella, Billy", rank:"bc", quals:[]},
+  {name:"Perry, Joe", rank:"bc", quals:[]},
+  {name:"Bunnell, Joseph", rank:"captain", quals:["RS"]},
+  {name:"Spiteri, Anthony", rank:"captain", quals:[]},
+  {name:"Klarich, Ryan", rank:"captain", quals:["RS"]},
+  {name:"Boyle, Daniel", rank:"captain", quals:[]},
+  {name:"Symkowick, Marc", rank:"captain", quals:[]},
+  {name:"Shomaker, Peggy", rank:"captain", quals:[]},
+  {name:"Barahona, Herman", rank:"captain", quals:[]},
+  {name:"Stacey, Scott", rank:"captain", quals:["RS"]},
+  {name:"Besozzi, Steven", rank:"captain", quals:["RS"]},
+  {name:"Novelli, David", rank:"captain", quals:["RS"]},
+  {name:"Hinsch, Kevin", rank:"captain", quals:[]},
+  {name:"Kuhner, Kevin", rank:"captain", quals:[]},
+  {name:"Wettstein, Christopher", rank:"captain", quals:["RS"]},
+  {name:"Kirby, Lukas", rank:"captain", quals:["RS"]},
+  {name:"Kelly, Brenden", rank:"captain", quals:[]},
+  {name:"Donovan, Kyle", rank:"captain", quals:[]},
+  {name:"Hollenbeck, North", rank:"captain", quals:["RS"]},
+  {name:"Hunt, Ronald", rank:"captain", quals:["RS"]},
+  {name:"Klink, Michael", rank:"captain", quals:["RS"]},
+  {name:"Gibbons, Anthony", rank:"captain", quals:[]},
+  {name:"Mason, Matthew", rank:"captain", quals:[]},
+  {name:"Caceres, Eric", rank:"captain", quals:["RS"]},
+  {name:"Ryan, Vincent", rank:"captain", quals:[]},
+  {name:"McNichol Jr, Robert", rank:"ff", quals:["PM"]},
+  {name:"Murray, Joseph", rank:"ff", quals:["RS"]},
+  {name:"Cerecedes, Daniel", rank:"ff", quals:["PM","RS","AC"]},
+  {name:"Hutchinson, Jonathan", rank:"ff", quals:[]},
+  {name:"Bader, Travis", rank:"ff", quals:["PM","RS","AC"]},
+  {name:"Nuñez, Fernando", rank:"ff", quals:["PM","AC"]},
+  {name:"Mallick, Ryan", rank:"ff", quals:["PM","AC"]},
+  {name:"Pries, Brian", rank:"ff", quals:["PM","RS"]},
+  {name:"Vanderwerff, Willem", rank:"ff", quals:["PM","RS","AC"]},
+  {name:"Gonzales, Chase", rank:"ff", quals:["PM"]},
+  {name:"Hollenbeck, Ky", rank:"ff", quals:["PM","RS","AC"]},
+  {name:"Bradley, Chad", rank:"ff", quals:["PM"]},
+  {name:"Armstrong, Garland", rank:"ff", quals:["PM"]},
+  {name:"Hutten, Timothy", rank:"ff", quals:[]},
+  {name:"Kelly, Colin", rank:"ff", quals:["PM","AC"]},
+  {name:"McWhirter, Michael", rank:"ff", quals:["PM"]},
+  {name:"Maccarra, John", rank:"ff", quals:["PM"]},
+  {name:"Sousa, Scott", rank:"ff", quals:["RS","AC"]},
+  {name:"Eversole, Trevor", rank:"ff", quals:["PM"]},
+  {name:"MacIntosh, Eric", rank:"ff", quals:["PM"]},
+  {name:"Conroy, Tyler", rank:"ff", quals:["PM"]},
+  {name:"Goudarzi, John", rank:"ff", quals:[]},
+  {name:"Reardon, Scott", rank:"ff", quals:["PM"]},
+  {name:"Kadash, Christian", rank:"ff", quals:["PM","AC"]},
+  {name:"Plume, Joseph", rank:"ff", quals:["PM"]},
+  {name:"Barajas, Lucas", rank:"ff", quals:["RS","AC"]},
+  {name:"Houser, Matthew", rank:"ff", quals:["PM"]},
+  {name:"Rafferty, Kevin", rank:"ff", quals:["PM"]},
+  {name:"Hopkins, Elliot", rank:"ff", quals:["PM","RS","AC"]},
+  {name:"Ershov, Daniel", rank:"ff", quals:["PM","AC"]},
+  {name:"Lastusky, Andrew", rank:"ff", quals:["PM"]},
+  {name:"Caliz, Samuel", rank:"ff", quals:[]},
+  {name:"Carreon, Drew", rank:"ff", quals:["PM"]},
+  {name:"Jerkunica, Marinko", rank:"ff", quals:["PM"]},
+  {name:"Parsons, Brianne", rank:"ff", quals:[]},
+  {name:"Bourke, Braeden", rank:"ff", quals:[]},
+  {name:"Uhrich, Robert", rank:"ff", quals:[]},
+  {name:"Dauwe, Paea", rank:"ff", quals:[]},
+  {name:"Kaulave, Philip", rank:"ff", quals:[]},
+  {name:"Marshall, Brett", rank:"ff", quals:["PM"]},
+  {name:"Nordhoff, Ryan", rank:"ff", quals:["PM"]},
+  {name:"Rios, KC", rank:"ff", quals:["PM"]},
+  {name:"Villeggiante, Anthony", rank:"ff", quals:["PM"]},
+  {name:"Perez, Gabriel", rank:"ff", quals:["PM"]},
+  {name:"McPhillips, Dylan", rank:"ff", quals:["PM"]},
+  {name:"Henrickson, Daniel", rank:"ff", quals:[]},
+  {name:"Collet, Trevor", rank:"ff", quals:["PM"]},
+  {name:"Miller, Pat", rank:"ff", quals:["PM"]},
+  {name:"Smith, Kennedy", rank:"ff", quals:[]},
+  {name:"Washburn, Jesse", rank:"ff", quals:[]},
+  {name:"Abella, Powell", rank:"ff", quals:[]},
+  {name:"Lopiccolo, Carlo", rank:"ff", quals:[]},
+  {name:"Jimenez, Leo", rank:"ff", quals:[]},
+  {name:"Shaffer, Jimmy", rank:"ff", quals:[]},
+];
+
+const bcDefaults = { A:"Pera, Casey", B:"Vella, Billy", C:"Murphy, Pat" };
+
+const holidaysByShift = {
+  A:[["Fri Jan 1","New Year's Day","Jan 1","New Year"],["Mon May 31","Memorial Day","May 31","Memorial"],["Sat Jun 19","Juneteenth","Jun 19","Juneteenth"],["Mon Oct 11","Columbus Day","Oct 11","Columbus"]],
+  B:[["Mon Jan 18","MLK Day","Jan 18","MLK Day"],["Sun Jul 4","Independence Day","Jul 4","July 4th"],["Thu Nov 25","Thanksgiving","Nov 25","Thanksgiving"],["Sat Dec 25","Christmas","Dec 25","Christmas"],["Fri Dec 31","New Year's Eve","Dec 31","New Yr Eve"]],
+  C:[["Mon Feb 15","Presidents' Day","Feb 15","Presidents"],["Wed Mar 17","St. Patrick's Day","Mar 17","St. Patrick"],["Sun Mar 28","Easter","Mar 28","Easter"],["Sun May 9","Mother's Day","May 9","Mother's"],["Sun Jun 20","Father's Day","Jun 20","Father's"],["Mon Sep 6","Labor Day","Sep 6","Labor Day"],["Sun Oct 31","Halloween","Oct 31","Halloween"],["Thu Nov 11","Veterans Day","Nov 11","Veterans"],["Fri Dec 24","Christmas Eve","Dec 24","Xmas Eve"]],
+};
+
+/* ================= STRUCTURE ================= */
+const engineSlots = [
+  {key:"capt", label:"Captain", kind:"captain"},
+  {key:"medic", label:"Paramedic", kind:"medic"},
+  {key:"medicEmt", label:"Paramedic / EMT", kind:"flex"},
+];
+const truckSlots = [
+  {key:"capt", label:"Captain", kind:"captain"},
+  {key:"medic", label:"Paramedic", kind:"medic"},
+  {key:"flex1", label:"EMT / Paramedic", kind:"flex"},
+  {key:"flex2", label:"EMT / Paramedic", kind:"flex"},
+];
+const stations = [
+  {id:"32", title:"Station 32", slots:engineSlots},
+  {id:"33", title:"Station 33", slots:engineSlots},
+  {id:"e34", title:"Engine 34", slots:engineSlots},
+  {id:"t34", title:"Truck 34", slots:truckSlots},
+  {id:"35", title:"Station 35", slots:engineSlots},
+  {id:"36", title:"Station 36", slots:engineSlots},
+  {id:"37", title:"Station 37", slots:engineSlots},
+  {id:"38", title:"Station 38", slots:engineSlots},
+];
+const shifts = ["A","B","C"];
+const floatSlots = ["1","2","3","4"];
+const holdSlots = ["hold1","hold2","hold3"];
+const CODE_ORDER = ["PM","RS","AC"];
+
+/* ================= STATE ================= */
+let slotMeta = {}, assignments = {}, placed = {};
+
+function initState(){
+  slotMeta = {}; assignments = {}; placed = {};
+  shifts.forEach(s => stations.forEach(st => st.slots.forEach(sl => {
+    const id = `${s}|${st.id}|${sl.key}`;
+    slotMeta[id] = {label:sl.label, kind:sl.kind}; assignments[id] = null;
+  })));
+  shifts.forEach(s => { const id = `${s}|bc|chief`; slotMeta[id] = {label:"BC", kind:"shiftbc"}; assignments[id] = null; });
+  shifts.forEach(s => floatSlots.forEach(k => {
+    const id = `float|${s}|${k}`; slotMeta[id] = {label:"Float", kind:"float"}; assignments[id] = null;
+  }));
+  slotMeta["off|tbc"]  = {label:"BC", kind:"bc"};              assignments["off|tbc"]  = null;
+  slotMeta["off|tcap"] = {label:"Captain", kind:"trainingcap"}; assignments["off|tcap"] = null;
+  holdSlots.forEach((k,i) => { const id = `off|${k}`; slotMeta[id] = {label:`Hold ${i+1}`, kind:"hold"}; assignments[id] = null; });
+}
+function preplaceDefaults(){
+  assignments["off|tbc"] = "Perry, Joe"; placed["Perry, Joe"] = "off|tbc";
+  shifts.forEach(s => { const id = `${s}|bc|chief`; assignments[id] = bcDefaults[s]; placed[bcDefaults[s]] = id; });
+}
+let lastNameMap = null;
+function buildLastNameMap(){
+  const counts = {};
+  roster.forEach(r => { const ln = r.name.split(',')[0].trim(); counts[ln] = (counts[ln]||0) + 1; });
+  lastNameMap = {};
+  roster.forEach(r => {
+    const parts = r.name.split(',');
+    const ln = parts[0].trim();
+    const fi = (parts[1]||'').trim().charAt(0);
+    lastNameMap[r.name] = (counts[ln] > 1 && fi) ? `${ln} ${fi}` : ln;
+  });
+}
+function shortName(name){
+  if(!lastNameMap) buildLastNameMap();
+  return lastNameMap[name] || String(name).split(',')[0].trim();
+}
+function qualsFor(name){ const r = roster.find(x => x.name === name); return r ? (r.quals || []) : []; }
+function isMedic(name){ return qualsFor(name).includes('PM'); }
+function hasAC(name){ return qualsFor(name).includes('AC'); }
+function isCaptainRank(name){ const r = roster.find(x => x.name === name); return !!r && r.rank === 'captain'; }
+function roleClass(name){
+  const r = roster.find(x => x.name === name);
+  if(!r) return 'role-ff';
+  if(r.rank === 'bc') return 'role-bc';
+  if(r.rank === 'captain') return 'role-capt';
+  if((r.quals||[]).includes('PM')) return 'role-medic';
+  return 'role-ff';
+}
+function roleDot(name){ return `<span class="rdot ${roleClass(name)}">●</span>`; }
+function codesHTML(name, inCaptSeat){
+  const q = qualsFor(name);
+  const parts = CODE_ORDER.filter(c => q.includes(c)).map(c =>
+    (c === 'PM' && inCaptSeat) ? 'PM<span class="pmstar">*</span>' : c);
+  return parts.length ? `<span class="codes">${parts.join(' · ')}</span>` : '';
+}
+
+/* ================= BUILD DOM ================= */
+function slotHTML(id){
+  const m = slotMeta[id];
+  const d = document.createElement('div');
+  d.className = 'slot'; d.dataset.slotid = id;
+  d.innerHTML = `
+    <span class="slotLabel">${m.label}</span>
+    <span class="slotName empty"></span>
+    <span class="grip" title="Drag">⠿</span>
+    <button class="clearBtn" title="Clear">✕</button>`;
+  d.querySelector('.clearBtn').addEventListener('click', ev => {
+    ev.stopPropagation();
+    const n = assignments[id];
+    if(n){ assignments[id]=null; delete placed[n]; refreshSlot(id); renderPool(); updateCounts(); recordHistory(); }
+  });
+  pointerInteraction(d, {
+    canDrag: () => !!assignments[id],
+    dragPayload: () => { const n = assignments[id]; return n ? {name:n, sourceType:'slot', slotId:id} : null; },
+    onTap: () => slotTap(id)
+  });
+  return d;
+}
+
+function buildBoard(){
+  if(boardMode === 'grid') return buildMatrixBoard();
+  const board = document.getElementById('board');
+  board.className = '';
+  board.innerHTML = '';
+  shifts.forEach(shift => {
+    const col = document.createElement('div');
+    col.className = 'shiftCol'; col.dataset.shift = shift;
+    col.innerHTML = `
+      <div class="shiftHead">
+        <div class="letter" onclick="toggleShiftExpand('${shift}')" title="Tap to expand this shift">${shift}<span class="expIcon">⤢</span></div>
+      </div>
+      <div class="counter">
+        <span class="c-pm">PM<b id="cnt-${shift}-pm">0</b></span>
+        <span class="c-rs">RS<b id="cnt-${shift}-rs">0</b></span>
+        <span class="c-ac">AC<b id="cnt-${shift}-ac">0</b></span>
+        <span class="c-open">Open<b id="cnt-${shift}-open">0</b></span>
+      </div>`;
+    col.querySelector('.shiftHead').appendChild(slotHTML(`${shift}|bc|chief`));
+    stations.forEach(st => {
+      const block = document.createElement('div');
+      block.className = 'stationBlock';
+      block.innerHTML = `<div class="stationTitle" id="sttl-${shift}-${st.id}">${st.title}</div>`;
+      st.slots.forEach(sl => block.appendChild(slotHTML(`${shift}|${st.id}|${sl.key}`)));
+      col.appendChild(block);
+    });
+    const fblock = document.createElement('div');
+    fblock.className = 'stationBlock';
+    fblock.innerHTML = `<div class="stationTitle">Floats</div>`;
+    floatSlots.forEach(k => fblock.appendChild(slotHTML(`float|${shift}|${k}`)));
+    col.appendChild(fblock);
+    board.appendChild(col);
+  });
+
+  const footer = document.getElementById('footer');
+  footer.innerHTML = '';
+  const trainBlock = document.createElement('div');
+  trainBlock.className = 'footBlock stBlock';
+  trainBlock.innerHTML = `<div class="stationTitle">Training</div>`;
+  trainBlock.appendChild(slotHTML('off|tbc'));
+  trainBlock.appendChild(slotHTML('off|tcap'));
+  footer.appendChild(trainBlock);
+
+  const holdBlock = document.createElement('div');
+  holdBlock.className = 'footBlock stBlock';
+  holdBlock.innerHTML = `<div class="stationTitle">Holding</div>`;
+  holdSlots.forEach(k => holdBlock.appendChild(slotHTML(`off|${k}`)));
+  footer.appendChild(holdBlock);
+
+  renderHolidays();
+}
+function renderHolidays(){
+  document.getElementById('holList').innerHTML = '<div id="holWrap">' + shifts.map(s => {
+    const rows = holidaysByShift[s].map(h => `<div class="hrow"><span class="hdate">${h[0]}</span><span class="hname">${h[1]}</span></div>`).join('');
+    return `<div class="holGroup"><div class="holGroupTitle s-${s}">${s} Shift (${holidaysByShift[s].length})</div>${rows}</div>`;
+  }).join('') + '</div>';
+}
+
+/* ---------- WIDE VIEW: shifts as rows, stations across ---------- */
+function rigLabel(st){
+  if(st.id === 't34') return 'T34';
+  if(st.id === 'e34') return 'E34';
+  return 'E' + st.id;
+}
+function buildMatrixBoard(){
+  const board = document.getElementById('board');
+  board.className = 'mBoard';
+  board.innerHTML = '';
+
+  const head = document.createElement('div');
+  head.className = 'mHead';
+  head.innerHTML = '<div class="mCorner"></div>' +
+    stations.map(st => `<div class="mH">${rigLabel(st)}</div>`).join('') +
+    '<div class="mH">Floats</div>';
+
+  /* everything inside .mScreen is exactly one screenful - D row lands below it */
+  const screen = document.createElement('div');
+  screen.className = 'mScreen';
+  screen.appendChild(head);
+
+  shifts.forEach(shift => {
+    const row = document.createElement('div');
+    row.className = 'mRow'; row.dataset.shift = shift;
+    const lab = document.createElement('div');
+    lab.className = 'mLab';
+    lab.innerHTML = `<div class="mL">${shift}</div>
+      <div class="mCnt"><span class="c-pm">PM<b id="cnt-${shift}-pm">0</b></span><span class="c-rs">RS<b id="cnt-${shift}-rs">0</b></span><span class="c-ac">AC<b id="cnt-${shift}-ac">0</b></span><span class="c-open">OP<b id="cnt-${shift}-open">0</b></span></div>`;
+    lab.appendChild(slotHTML(`${shift}|bc|chief`));
+    row.appendChild(lab);
+    stations.forEach(st => {
+      const cell = document.createElement('div');
+      cell.className = 'mCell';
+      cell.innerHTML = `<div class="stationTitle mCellTtl" id="sttl-${shift}-${st.id}">${rigLabel(st)}</div>`;
+      st.slots.forEach(sl => cell.appendChild(slotHTML(`${shift}|${st.id}|${sl.key}`)));
+      row.appendChild(cell);
+    });
+    const fc = document.createElement('div');
+    fc.className = 'mCell';
+    fc.innerHTML = '<div class="stationTitle mCellTtl">Floats</div>';
+    floatSlots.forEach(k => fc.appendChild(slotHTML(`float|${shift}|${k}`)));
+    row.appendChild(fc);
+    screen.appendChild(row);
+  });
+  board.appendChild(screen);
+
+  /* Training + Holding ride below the fold like a "D shift" - scroll to reach them */
+  const d = document.createElement('div');
+  d.className = 'mRow dRow';
+  d.innerHTML = '<div class="mLab mLabGhost"></div>';
+  let dCells = 0;
+  const tc = document.createElement('div');
+  tc.className = 'mCell';
+  tc.innerHTML = '<div class="stationTitle mCellTtl">Training</div>';
+  tc.appendChild(slotHTML('off|tbc')); tc.appendChild(slotHTML('off|tcap'));
+  d.appendChild(tc); dCells++;
+  const hc = document.createElement('div');
+  hc.className = 'mCell';
+  hc.innerHTML = '<div class="stationTitle mCellTtl">Holding</div>';
+  holdSlots.forEach(k => hc.appendChild(slotHTML(`off|${k}`)));
+  d.appendChild(hc); dCells++;
+  /* ghost cells keep the D row aligned to the rig columns above */
+  for(let i = dCells; i < stations.length; i++){
+    const gap = document.createElement('div'); gap.className = 'mCell mGhost'; d.appendChild(gap);
+  }
+  board.appendChild(d);
+
+  document.getElementById('footer').innerHTML = '';
+  renderHolidays();
+}
+
+function refreshSlot(id){
+  const el = document.querySelector(`.slot[data-slotid="${CSS.escape(id)}"]`);
+  if(!el) return;
+  const name = assignments[id];
+  const nameSpan = el.querySelector('.slotName');
+  el.classList.toggle('filled', !!name);
+  if(name){
+    const isCapt = id.split('|')[2] === 'capt';
+    nameSpan.innerHTML = `${roleDot(name)}<span class="pname">${name}</span><span class="sname">${shortName(name)}</span>${codesHTML(name, isCapt)}`;
+    nameSpan.classList.remove('empty');
+  } else {
+    nameSpan.innerHTML = ''; nameSpan.classList.add('empty');
+  }
+}
+function refreshAllSlots(){ Object.keys(slotMeta).forEach(refreshSlot); }
+
+/* ================= COUNTERS + FLAGS ================= */
+function updateCounts(){
+  const tally = {A:{pm:0,rs:0,ac:0,open:0}, B:{pm:0,rs:0,ac:0,open:0}, C:{pm:0,rs:0,ac:0,open:0}};
+  Object.keys(assignments).forEach(id => {
+    let shift=null, isCapt=false;
+    if(id.startsWith('float|')){ shift = id.split('|')[1]; }
+    else if(id.startsWith('off|')){ return; }
+    else { const p = id.split('|'); if(p[1] === 'bc') return; shift = p[0]; isCapt = (p[2] === 'capt'); }
+    if(!tally[shift]) return;
+    const name = assignments[id];
+    if(!name){ tally[shift].open++; return; }
+    const q = qualsFor(name);
+    if(q.includes('PM') && !isCapt) tally[shift].pm++;
+    if(q.includes('RS')) tally[shift].rs++;
+    if(q.includes('AC')) tally[shift].ac++;
+  });
+  shifts.forEach(s => {
+    document.getElementById(`cnt-${s}-pm`).textContent = tally[s].pm;
+    document.getElementById(`cnt-${s}-rs`).textContent = tally[s].rs;
+    document.getElementById(`cnt-${s}-ac`).textContent = tally[s].ac;
+    document.getElementById(`cnt-${s}-open`).textContent = tally[s].open;
+  });
+  shifts.forEach(s => stations.forEach(st => {
+    let anyone = false, medic = false;
+    st.slots.forEach(sl => { const n = assignments[`${s}|${st.id}|${sl.key}`]; if(n){ anyone = true; if(isMedic(n)) medic = true; } });
+    const ttl = document.getElementById(`sttl-${s}-${st.id}`);
+    if(ttl) ttl.classList.toggle('understaffed', anyone && !medic);
+  }));
+}
+
+/* ================= POOL + ON THE CLOCK ================= */
+let poolFilter = 'all';
+let balanceOn = true;
+function setFilter(f){
+  poolFilter = f;
+  document.querySelectorAll('.filterBtn').forEach(b => b.classList.toggle('active', b.dataset.f === f));
+  renderPool();
+}
+function onTheClock(){ for(const r of roster){ if(!placed[r.name]) return r.name; } return null; }
+function renderPool(){
+  const pool = document.getElementById('pool');
+  const query = document.getElementById('poolSearch').value.trim().toLowerCase();
+  pool.innerHTML = '';
+  const canBid = (poolFilter === 'all');
+  const clock = onTheClock();
+  let list = roster.filter(r => !placed[r.name]);
+  if(poolFilter !== 'all') list = list.filter(r => (r.quals||[]).includes(poolFilter));
+  if(query) list = list.filter(r => r.name.toLowerCase().includes(query));
+  list.forEach(r => {
+    const chip = document.createElement('div');
+    chip.className = 'chip';
+    if(canBid && r.name === clock) chip.classList.add('onclock');
+    const tag = r.rank==='captain' ? 'CAPT' : r.rank==='bc' ? 'BC' : '';
+    const gripHTML = canBid ? `<span class="grip" title="Drag">⠿</span>` : '';
+    chip.innerHTML = `${gripHTML}${roleDot(r.name)}<span class="chipName"><span class="pname">${r.name}</span><span class="sname">${shortName(r.name)}</span></span>${codesHTML(r.name, false)}<span class="tag">${tag}</span>`;
+    if(canBid){
+      pointerInteraction(chip, {
+        canDrag: () => true,
+        dragPayload: () => ({name:r.name, sourceType:'pool'}),
+        onTap: () => chipTap(r.name)
+      });
+    }
+    pool.appendChild(chip);
+  });
+  document.getElementById('viewHint').style.display = canBid ? 'none' : 'block';
+  const avail = roster.filter(r => !placed[r.name]).length;
+  document.getElementById('poolCount').textContent = `${avail} of ${roster.length} unassigned`;
+  ensureClockSelection(); renderSelection();
+}
+
+/* ================= SELECTION (auto on-the-clock + tap to place) ================= */
+let ghostEl = null, curHi = null, selected = null;
+
+function ensureClockSelection(){
+  let valid = false;
+  if(selected && !selected.auto){
+    if(selected.sourceType==='slot') valid = (assignments[selected.slotId] === selected.name);
+    else valid = !placed[selected.name];
+  }
+  if(!valid){
+    const c = onTheClock();
+    selected = c ? {name:c, sourceType:'pool', auto:true} : null;
+  }
+}
+function chipTap(name){ selected = {name, sourceType:'pool', auto:false}; renderSelection(); }
+function slotTap(id){
+  const occ = assignments[id];
+  if(selected && !selected.auto && selected.sourceType==='slot' && selected.slotId===id){ cancelSelection(); return; }
+  if(selected){
+    if(selected.auto && occ){ selected = {name:occ, sourceType:'slot', slotId:id}; renderSelection(); return; }
+    placeIntoSlot(selected, id);
+    return;
+  }
+  if(occ){ selected = {name:occ, sourceType:'slot', slotId:id}; renderSelection(); }
+}
+function renderSelection(){
+  document.querySelectorAll('.selected').forEach(x => x.classList.remove('selected'));
+  if(selected){
+    if(selected.sourceType==='slot'){
+      const el = document.querySelector(`.slot[data-slotid="${CSS.escape(selected.slotId)}"]`);
+      if(el) el.classList.add('selected');
+    } else {
+      document.querySelectorAll('#pool .chip').forEach(c => {
+        const pn = c.querySelector('.chipName .pname');
+        if(pn && pn.textContent === selected.name) c.classList.add('selected');
+      });
+    }
+  }
+  refreshStatus();
+}
+function refreshStatus(){
+  const label = document.getElementById('statusLabel');
+  const nameEl = document.getElementById('statusName');
+  const cancel = document.getElementById('statusCancel');
+  const short = document.body.classList.contains('phone');
+  const disp = n => (n && short) ? shortName(n) : n;
+  if(selected && selected.auto){
+    label.textContent = 'On the clock'; nameEl.textContent = disp(selected.name); cancel.style.display = 'none';
+  } else if(selected && selected.sourceType==='pool'){
+    label.textContent = ''; nameEl.textContent = disp(selected.name); cancel.style.display = 'inline-block';
+  } else if(selected){
+    label.textContent = ''; nameEl.textContent = disp(selected.name); cancel.style.display = 'inline-block';
+  } else {
+    const n = onTheClock();
+    label.textContent = 'On the clock'; nameEl.textContent = n ? disp(n) : 'All placed'; cancel.style.display = 'none';
+  }
+  const ft = document.getElementById('floatNameText');
+  if(ft) ft.textContent = nameEl.textContent;
+}
+function cancelSelection(){ selected = null; ensureClockSelection(); renderSelection(); }
+function clearSelection(){ selected = null; renderSelection(); }
+
+/* ================= DRAG ENGINE ================= */
+function pointerInteraction(el, opts){
+  el.addEventListener('pointerdown', e => {
+    if(e.button && e.button !== 0) return;
+    if(e.target.closest('.clearBtn')) return;
+    const isTouch = e.pointerType === 'touch';
+    const onHandle = !!e.target.closest('.grip');
+    const drag = opts.canDrag();
+    const sx = e.clientX, sy = e.clientY;
+    let started = false, holdTimer = null, lastX = sx, lastY = sy;
+    if(drag && (!isTouch || onHandle)) e.preventDefault();
+    const begin = () => {
+      if(started) return;
+      const p = opts.dragPayload(); if(!p) return;
+      clearSelection();
+      started = true; beginDrag(p, el); moveGhost(lastX,lastY); updateHighlight(lastX,lastY);
+    };
+    const cleanup = () => {
+      if(holdTimer){ clearTimeout(holdTimer); holdTimer = null; }
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onCancel);
+    };
+    const onMove = ev => {
+      lastX = ev.clientX; lastY = ev.clientY;
+      const moved = Math.hypot(ev.clientX - sx, ev.clientY - sy);
+      if(!started){
+        if(!drag) return;
+        if(isTouch && !onHandle){ if(moved > 10) cleanup(); return; }
+        if(moved < 6) return;
+        begin();
+      }
+      ev.preventDefault(); moveGhost(ev.clientX, ev.clientY); updateHighlight(ev.clientX, ev.clientY);
+    };
+    const onUp = ev => {
+      const was = started; cleanup();
+      if(was){
+        finishDrag(opts.dragPayload(), ev.clientX, ev.clientY);
+        clearVisuals(); ensureClockSelection(); renderSelection();
+        return;
+      }
+      const moved = Math.hypot(ev.clientX - sx, ev.clientY - sy);
+      if(moved < 10 && opts.onTap) opts.onTap();
+    };
+    const onCancel = () => { cleanup(); clearVisuals(); };
+    if(drag && isTouch && !onHandle) holdTimer = setTimeout(begin, 160);
+    window.addEventListener('pointermove', onMove, {passive:false});
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onCancel);
+  });
+}
+function beginDrag(payload, el){
+  el.classList.add('dragging'); document.body.classList.add('dragging-active');
+  ghostEl = document.createElement('div'); ghostEl.className = 'dragGhost';
+  ghostEl.textContent = payload.name; document.body.appendChild(ghostEl);
+}
+function moveGhost(x,y){ if(ghostEl){ ghostEl.style.left=(x+2)+'px'; ghostEl.style.top=(y+2)+'px'; } }
+function updateHighlight(x,y){
+  const t = document.elementFromPoint(x,y);
+  const slot = t ? t.closest('.slot') : null;
+  if(curHi && curHi !== slot) curHi.classList.remove('dragover');
+  if(slot){ slot.classList.add('dragover'); curHi = slot; } else curHi = null;
+}
+function finishDrag(payload,x,y){
+  const t = document.elementFromPoint(x,y);
+  const slot = t ? t.closest('.slot') : null;
+  if(slot){ placeIntoSlot(payload, slot.dataset.slotid); }
+  else if(t && (t.closest('#pool') || t.closest('#poolWrap')) && payload.sourceType==='slot'){
+    assignments[payload.slotId] = null; delete placed[payload.name];
+    refreshSlot(payload.slotId); renderPool(); updateCounts(); recordHistory();
+  }
+}
+function clearVisuals(){
+  if(ghostEl){ ghostEl.remove(); ghostEl = null; }
+  if(curHi){ curHi.classList.remove('dragover'); curHi = null; }
+  document.body.classList.remove('dragging-active');
+  document.querySelectorAll('.dragging').forEach(x => x.classList.remove('dragging'));
+}
+function flashSlot(id){
+  const el = document.querySelector(`.slot[data-slotid="${CSS.escape(id)}"]`);
+  if(el){ el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash'); }
+}
+
+/* ================= PLACEMENT + RULES ================= */
+let toastTimer = null;
+function showToast(msg, kind){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.remove('info','error'); t.classList.add(kind === 'info' ? 'info' : 'error', 'show');
+  if(toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), kind === 'info' ? 3600 : 2800);
+}
+function validateMove(payload, targetId){
+  const sim = Object.assign({}, assignments);
+  const displaced = sim[targetId] || null;
+  const changed = [targetId];
+  if(payload.sourceType === 'slot'){ sim[payload.slotId] = displaced; sim[targetId] = payload.name; changed.push(payload.slotId); }
+  else { sim[targetId] = payload.name; }
+  const trainingKinds = ['bc','trainingcap'];
+  const ffKinds = ['medic','flex','float'];
+  for(const id of changed){
+    const occ = sim[id]; if(!occ) continue;
+    const kind = slotMeta[id].kind;
+    const r = roster.find(x => x.name === occ);
+    const isBC = !!r && r.rank === 'bc';
+    if(kind === 'shiftbc' && !isBC) return '';                                  // shift BC seat: chiefs only
+    if(trainingKinds.includes(kind) && !isCaptainRank(occ) && !isBC) return '';  // any captain (or BC)
+    if(kind === 'captain' && !isCaptainRank(occ) && !hasAC(occ)) return '';      // rig captain seats: capt or AC
+    if(ffKinds.includes(kind) && (isCaptainRank(occ) || isBC)) return '';        // silent
+    if(kind === 'medic' && !isMedic(occ)) return '';                             // paramedic-only seat
+  }
+  return null;
+}
+function canBalance(arr, R){
+  const a = arr.slice();
+  for(let i=0;i<R;i++){ let mi=0; for(let j=1;j<a.length;j++) if(a[j]<a[mi]) mi=j; a[mi]++; }
+  return Math.max(...a) - Math.min(...a) <= 1;
+}
+function balanceState(excludeName){
+  const base = {A:0,B:0,C:0};
+  const placedSet = new Set();
+  Object.keys(assignments).forEach(id => {
+    const n = assignments[id]; if(!n) return; placedSet.add(n);
+    if(n === excludeName) return;
+    let shift = null;
+    if(id.startsWith('float|')) shift = id.split('|')[1];
+    else if(id.startsWith('off|')) return;
+    else { const p = id.split('|'); if(p[1] === 'bc' || p[2] === 'capt') return; shift = p[0]; }
+    if(shift && isMedic(n)) base[shift]++;
+  });
+  let R = 0;
+  roster.forEach(r => { if(isMedic(r.name) && !placedSet.has(r.name) && r.name !== excludeName) R++; });
+  return {base, R};
+}
+function balanceBlock(payload, targetId){
+  if(!balanceOn || !isMedic(payload.name)) return null;
+  const kind = slotMeta[targetId].kind;
+  if(!['medic','flex','float'].includes(kind)) return null;
+  /* Every rig has to end the bid with a medic. If this rig still has none,
+     coverage outranks shift balance - otherwise the last uncovered rigs could
+     never be filled and the bid cannot legally finish. */
+  if(!targetId.startsWith('float|') && !targetId.startsWith('off|')){
+    const p0 = targetId.split('|'); const S0 = p0[0], ST0 = p0[1];
+    const st0 = stations.find(x => x.id === ST0);
+    if(st0){
+      const covered = st0.slots.some(sl => {
+        const n = assignments[`${S0}|${ST0}|${sl.key}`];
+        return n && n !== payload.name && isMedic(n);
+      });
+      if(!covered) return null;
+    }
+  }
+  const shift = targetId.startsWith('float|') ? targetId.split('|')[1] : targetId.split('|')[0];
+  const {base, R} = balanceState(payload.name);
+  const test = s => { const b = {A:base.A, B:base.B, C:base.C}; b[s]++; return canBalance([b.A,b.B,b.C], R); };
+  if(test(shift)) return null;
+  const allowed = ['A','B','C'].filter(test);
+  const first = payload.name.split(',')[0];
+  return allowed.length
+    ? `Paramedic balance: ${shift} shift already has enough medics. ${first} needs to bid ${allowed.join(' or ')} shift to keep the shifts even.`
+    : `Paramedic balance: adding another medic here would unbalance the shifts. Free up a seat elsewhere first.`;
+}
+function rigCoverageBlock(payload, targetId){
+  if(!isMedic(payload.name)) return null;
+  if(targetId.startsWith('float|') || targetId.startsWith('off|')) return null;
+  const p = targetId.split('|'); const S = p[0], STID = p[1];
+  const st = stations.find(x => x.id === STID); if(!st) return null;
+  const sim = Object.assign({}, assignments);
+  if(payload.sourceType === 'slot'){ sim[payload.slotId] = assignments[targetId] || null; }
+  sim[targetId] = payload.name;
+  const rigMedics = st.slots.map(sl => `${S}|${STID}|${sl.key}`).filter(id => { const n = sim[id]; return n && isMedic(n); }).length;
+  if(rigMedics < 2) return null;                    // first medic on this rig — always allowed
+  let bare = 0;                                     // rigs (not floats) with no medic anywhere, across all shifts
+  shifts.forEach(s => stations.forEach(x => {
+    const seats = x.slots.map(sl => `${s}|${x.id}|${sl.key}`);
+    if(!seats.some(id => { const n = sim[id]; return n && isMedic(n); })) bare++;
+  }));
+  const placedSet = new Set(Object.values(sim).filter(Boolean));
+  let remaining = 0;
+  roster.forEach(r => { if(isMedic(r.name) && !placedSet.has(r.name)) remaining++; });
+  if(remaining >= bare) return null;
+  const first = payload.name.split(',')[0];
+  return `Every rig needs a medic first — this doubles up ${st.title} while another rig still has none. Put ${first} on a rig with no medic yet.`;
+}
+function placeIntoSlot(payload, targetId){
+  if(payload.sourceType === 'slot' && payload.slotId === targetId) return true;
+  const err = validateMove(payload, targetId);
+  if(err !== null){ if(err) showToast(err, 'error'); return false; }
+  const cmsg = rigCoverageBlock(payload, targetId);
+  if(cmsg){ showToast(cmsg, 'info'); return false; }
+  const bmsg = balanceBlock(payload, targetId);
+  if(bmsg){ showToast(bmsg, 'info'); return false; }
+  const targetName = assignments[targetId] || null;
+  if(payload.sourceType === 'pool'){
+    if(targetName) delete placed[targetName];
+    assignments[targetId] = payload.name; placed[payload.name] = targetId;
+  } else {
+    const srcId = payload.slotId;
+    assignments[srcId] = targetName;
+    assignments[targetId] = payload.name;
+    if(targetName) placed[targetName] = srcId;
+    placed[payload.name] = targetId;
+    refreshSlot(srcId);
+  }
+  refreshSlot(targetId); flashSlot(targetId); renderPool(); updateCounts(); recordHistory();
+  return true;
+}
+
+/* ================= SHARE: LINK + TEXT ================= */
+function orderedSlotIds(){ return Object.keys(slotMeta).sort(); }
+function rosterFingerprint(){
+  let h = 5381;
+  const s = roster.map(r => r.name).join('|');
+  for(let i=0;i<s.length;i++){ h = ((h*33) ^ s.charCodeAt(i)) >>> 0; }
+  return h.toString(36);
+}
+function encodeBid(){
+  const idx = {}; roster.forEach((r,i) => idx[r.name] = i);
+  const code = orderedSlotIds().map(id => {
+    const n = assignments[id];
+    if(!n || idx[n] === undefined) return '--';
+    return idx[n].toString(36).padStart(2,'0');
+  }).join('');
+  return `1${rosterFingerprint()}~${code}`;
+}
+function decodeBid(str){
+  if(!str || str[0] !== '1') return null;
+  const rest = str.slice(1), t = rest.indexOf('~');
+  if(t < 0) return null;
+  return { fp: rest.slice(0,t), code: rest.slice(t+1) };
+}
+function applyBidCode(str){
+  const p = decodeBid(str);
+  if(!p){ showToast('That link could not be read.', 'error'); return false; }
+  const ids = orderedSlotIds();
+  if(p.code.length !== ids.length * 2){ showToast('That bid link doesn’t match this board.', 'error'); return false; }
+  const mismatch = (p.fp !== rosterFingerprint());
+  Object.keys(assignments).forEach(k => assignments[k] = null); placed = {};
+  ids.forEach((id,i) => {
+    const tok = p.code.substr(i*2, 2);
+    if(tok === '--') return;
+    const ri = parseInt(tok, 36);
+    const r = roster[ri];
+    if(r){ assignments[id] = r.name; placed[r.name] = id; }
+  });
+  selected = null; buildLastNameMap(); refreshAllSlots(); renderPool(); updateCounts(); recordHistory();
+  if(mismatch) showToast('Heads up: this bid was made with a different roster — names may not line up.', 'info');
+  else showToast('Bid loaded.', 'info');
+  return true;
+}
+function copyLink(){
+  const base = location.href.split('#')[0];
+  const url = `${base}#bid=${encodeBid()}`;
+  copyText(url, 'Link copied!');
+}
+function bidAsText(){
+  const d = new Date().toLocaleDateString(undefined, {month:'short', day:'numeric', year:'numeric'});
+  const L = [`CCFD MOCK BID — ${d}`, ''];
+  const nm = id => { const n = assignments[id]; return n ? shortName(n) : '—'; };
+  const tally = countsByShift();
+  shifts.forEach(s => {
+    L.push(`${s} SHIFT — BC: ${nm(`${s}|bc|chief`)}`);
+    stations.forEach(st => {
+      const label = st.title.replace('Station','St').replace('Engine','E').replace('Truck','T');
+      L.push(`${label.padEnd(7)}${st.slots.map(sl => nm(`${s}|${st.id}|${sl.key}`)).join(' / ')}`);
+    });
+    L.push(`${'Floats'.padEnd(7)}${floatSlots.map(k => nm(`float|${s}|${k}`)).join(' / ')}`);
+    const t = tally[s];
+    L.push(`PM ${t.pm} · RS ${t.rs} · AC ${t.ac} · Open ${t.open}`, '');
+  });
+  L.push('TRAINING');
+  L.push(`BC      ${nm('off|tbc')}`);
+  L.push(`Captain ${nm('off|tcap')}`);
+  L.push('HOLDING');
+  L.push(holdSlots.map(k => nm(`off|${k}`)).join(' / '));
+  return L.join('\n');
+}
+function copyBidText(){ copyText(bidAsText(), 'Bid text copied!'); }
+function copyText(txt, okMsg){
+  const done = () => showToast(okMsg, 'info');
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(txt).then(done, () => fallbackCopy(txt, done));
+  } else fallbackCopy(txt, done);
+}
+function fallbackCopy(txt, done){
+  const ta = document.createElement('textarea');
+  ta.value = txt; ta.style.position='fixed'; ta.style.opacity='0';
+  document.body.appendChild(ta); ta.focus(); ta.select();
+  try{ document.execCommand('copy'); done(); }
+  catch(e){ document.getElementById('saveText').value = txt; document.getElementById('saveOverlay').classList.add('open'); }
+  ta.remove();
+}
+function countsByShift(){
+  const t = {A:{pm:0,rs:0,ac:0,open:0}, B:{pm:0,rs:0,ac:0,open:0}, C:{pm:0,rs:0,ac:0,open:0}};
+  Object.keys(assignments).forEach(id => {
+    let shift=null, isCapt=false;
+    if(id.startsWith('float|')) shift = id.split('|')[1];
+    else if(id.startsWith('off|')) return;
+    else { const p = id.split('|'); if(p[1] === 'bc') return; shift = p[0]; isCapt = (p[2] === 'capt'); }
+    if(!t[shift]) return;
+    const n = assignments[id];
+    if(!n){ t[shift].open++; return; }
+    const q = qualsFor(n);
+    if(q.includes('PM') && !isCapt) t[shift].pm++;
+    if(q.includes('RS')) t[shift].rs++;
+    if(q.includes('AC')) t[shift].ac++;
+  });
+  return t;
+}
+function loadFromHash(){
+  const m = location.hash.match(/bid=([^&]+)/);
+  if(m) applyBidCode(decodeURIComponent(m[1]));
+}
+/* ================= HOW TO USE ================= */
+function openHowTo(){ document.getElementById('howtoOverlay').classList.add('open'); }
+function dismissHowTo(){
+  document.getElementById('howtoOverlay').classList.remove('open');
+  try{ localStorage.setItem('ccfdSeenHowTo','1'); }catch(e){}
+}
+function maybeShowHowTo(){
+  let seen = false;
+  try{ seen = localStorage.getItem('ccfdSeenHowTo') === '1'; }catch(e){}
+  if(!seen) openHowTo();
+}
+
+/* ================= UNDO / REDO ================= */
+let history = [], histIdx = -1;
+function snapshot(){ return JSON.stringify({a:assignments, r:roster}); }
+function recordHistory(){ history = history.slice(0, histIdx + 1); history.push(snapshot()); histIdx = history.length - 1; updateUndoButtons(); }
+function restoreSnapshot(s){
+  const o = JSON.parse(s); roster = o.r; assignments = o.a; placed = {}; buildLastNameMap();
+  Object.keys(assignments).forEach(id => { if(assignments[id]) placed[assignments[id]] = id; });
+  selected = null; refreshAllSlots(); renderPool(); updateCounts(); updateUndoButtons();
+}
+function undo(){ if(histIdx > 0){ histIdx--; restoreSnapshot(history[histIdx]); } }
+function redo(){ if(histIdx < history.length - 1){ histIdx++; restoreSnapshot(history[histIdx]); } }
+function updateUndoButtons(){
+  document.getElementById('cbUndo').disabled = histIdx <= 0;
+  document.getElementById('cbRedo').disabled = histIdx >= history.length - 1;
+}
+
+/* ================= SAVE / LOAD ================= */
+function buildPayload(){ return JSON.stringify({version:4, roster, assignments}, null, 2); }
+function openSave(){ document.getElementById('saveText').value = buildPayload(); document.getElementById('saveOverlay').classList.add('open'); }
+function copySave(){
+  const ta = document.getElementById('saveText'), txt = ta.value;
+  if(navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(()=>flash('Copied!'), ()=>legacyCopy(ta)); else legacyCopy(ta);
+}
+function legacyCopy(ta){ ta.focus(); ta.select(); try{ document.execCommand('copy'); flash('Copied!'); }catch(e){ flash('Select & copy'); } }
+function flash(msg){ const b = event && event.target; if(b){ const o = b.textContent; b.textContent = msg; setTimeout(()=>b.textContent=o,1200); } }
+function downloadSave(){
+  const blob = new Blob([buildPayload()], {type:'application/json'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'ccfd_mock_bid.json';
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href), 1000);
+}
+function openLoad(){ document.getElementById('loadText').value=''; document.getElementById('loadOverlay').classList.add('open'); }
+function applyPasted(){ try{ applyState(JSON.parse(document.getElementById('loadText').value)); closeModal('loadOverlay'); } catch(e){ alert('That code could not be read.'); } }
+function applyFile(ev){
+  const f = ev.target.files[0]; if(!f) return;
+  const r = new FileReader();
+  r.onload = () => { try{ applyState(JSON.parse(r.result)); closeModal('loadOverlay'); } catch(e){ alert('That file could not be read.'); } };
+  r.readAsText(f);
+}
+function applyState(payload){
+  if(!payload || typeof payload !== 'object'){ alert('Invalid bid data'); return; }
+  if(Array.isArray(payload.roster)) roster = payload.roster; buildLastNameMap();
+  Object.keys(assignments).forEach(k => assignments[k] = null); placed = {};
+  const a = payload.assignments || {};
+  Object.keys(a).forEach(k => { if(k in assignments && a[k]){ assignments[k] = a[k]; placed[a[k]] = k; } });
+  selected = null; refreshAllSlots(); renderPool(); updateCounts(); recordHistory();
+}
+
+/* ================= EDIT ROSTER ================= */
+function openRoster(){ renderRosterList(); document.getElementById('rosterOverlay').classList.add('open'); }
+function addPerson(){
+  const inp = document.getElementById('newName'), name = inp.value.trim();
+  if(!name){ inp.focus(); return; }
+  if(roster.some(r => r.name.toLowerCase() === name.toLowerCase())){ alert('Already on the roster.'); return; }
+  const q = [];
+  if(document.getElementById('qPM').checked) q.push('PM');
+  if(document.getElementById('qRS').checked) q.push('RS');
+  if(document.getElementById('qAC').checked) q.push('AC');
+  roster.push({name, rank: document.getElementById('newRank').value, quals:q}); buildLastNameMap();
+  inp.value = '';
+  ['qPM','qRS','qAC'].forEach(id => document.getElementById(id).checked = false);
+  renderRosterList(); renderPool(); recordHistory();
+}
+function toggleQual(name, code){
+  const p = roster.find(r => r.name === name); if(!p) return;
+  p.quals = p.quals || [];
+  const i = p.quals.indexOf(code);
+  if(i >= 0) p.quals.splice(i, 1); else p.quals.push(code);
+  p.quals = CODE_ORDER.filter(c => p.quals.includes(c));
+  renderRosterList(); renderPool(); refreshAllSlots(); updateCounts(); recordHistory();
+  showToast(`${shortName(name)}: ${p.quals.length ? p.quals.join(' ') : 'no codes'}`, 'info');
+}
+function removePerson(name){
+  if(placed[name]){ const id = placed[name]; assignments[id]=null; delete placed[name]; refreshSlot(id); }
+  roster = roster.filter(r => r.name !== name); buildLastNameMap();
+  renderRosterList(); renderPool(); updateCounts(); recordHistory();
+}
+function renderRosterList(){
+  const list = document.getElementById('rosterList'); list.innerHTML = '';
+  roster.forEach(r => {
+    const row = document.createElement('div'); row.className = 'rItem';
+    const label = r.rank==='captain' ? 'CAPT' : r.rank==='bc' ? 'BC' : 'FF';
+    const q = (r.quals||[]).join(' ');
+    const has = c => (r.quals||[]).includes(c);
+    row.innerHTML = `<span class="rName">${r.name}</span><span class="rRank">${label}</span>` +
+      `<span class="qEdit">` +
+      ['PM','RS','AC'].map(c => `<button class="qBtn${has(c)?' on':''}" data-q="${c}">${c}</button>`).join('') +
+      `</span><button class="rDel" title="Remove">✕</button>`;
+    row.querySelectorAll('.qBtn').forEach(b =>
+      b.addEventListener('click', () => toggleQual(r.name, b.dataset.q)));
+    row.querySelector('.rDel').addEventListener('click', () => removePerson(r.name));
+    list.appendChild(row);
+  });
+}
+
+/* ================= ZOOM / LAYOUT ================= */
+let boardZoom = 1, fitActive = false;
+function clampZoom(z){ return Math.max(0.05, Math.min(3.0, z)); }
+function applyZoom(z){
+  if(boardMode === 'grid'){
+    boardZoom = 1;
+    document.getElementById('boardZoom').style.zoom = 1;
+    const zl = document.getElementById('zlabel'); if(zl) zl.textContent = '100%';
+    return;
+  } boardZoom = clampZoom(z); document.getElementById('boardZoom').style.zoom = boardZoom; document.getElementById('zlabel').textContent = Math.round(boardZoom*100) + '%'; }
+function zoomStep(d){ fitActive = null; applyZoom(boardZoom + d); }
+function fitBoard(){
+  if(boardMode === 'grid'){ applyZoom(1); return; }
+  // Fit = fill the width; scroll vertically through stations if needed
+  const bz = document.getElementById('boardZoom'); bz.style.zoom = 1;
+  const natural = document.getElementById('board').scrollWidth;
+  const avail = document.getElementById('boardArea').clientWidth - 4;
+  applyZoom(natural ? avail / natural : 1); fitActive = 'width';
+}
+function fitAll(){
+  if(boardMode === 'grid'){ applyZoom(1); return; }
+  // Fit All = whole board visible at once (both dimensions), no scrolling
+  const bz = document.getElementById('boardZoom'); bz.style.zoom = 1;
+  const area = document.getElementById('boardArea');
+  /* measure the whole zoom wrapper so Floats, Training and Holding are counted */
+  const w = bz.scrollWidth, h = bz.scrollHeight;
+  const aw = area.clientWidth - 4, ah = area.clientHeight - 6;
+  if(!w || !h) return;
+  applyZoom(Math.min(aw / w, ah / h)); fitActive = 'all';
+}
+function reFit(){ if(fitActive === 'all') fitAll(); else if(fitActive === 'width') fitBoard(); }
+function toggleRoster(){
+  if(document.body.classList.contains('phone')){ toggleDrawer(); return; }
+  const pw = document.getElementById('poolWrap');
+  pw.classList.toggle('collapsed');
+  document.getElementById('rosterBtn').textContent = pw.classList.contains('collapsed') ? '☰ Show Roster' : '✕ Hide Roster';
+  requestAnimationFrame(fitBoard);
+}
+let phoneManual = null, rosterSide = 'left', rosterCol = 0, expandedShift = null;
+let boardMode = 'cols';
+try{
+  const s = localStorage.getItem('ccfdRosterSide'); if(s === 'left' || s === 'right') rosterSide = s;
+  const c = parseInt(localStorage.getItem('ccfdRosterCol'), 10); if(c >= 0 && c <= 2) rosterCol = c;
+  const v = localStorage.getItem('ccfdViewMode'); if(v === 'phone') phoneManual = true; else if(v === 'full') phoneManual = false;
+}catch(e){}
+function isPhoneNow(){ return true; }
+function isPhoneNow_unused(){
+  if(phoneManual !== null) return phoneManual;
+  return Math.min(window.innerWidth, window.innerHeight) <= 500;
+}
+function isLandscape(){ return window.innerWidth > window.innerHeight; }
+function saveRosterPrefs(){
+  try{ localStorage.setItem('ccfdRosterSide', rosterSide); localStorage.setItem('ccfdRosterCol', String(rosterCol)); }catch(e){}
+}
+function applySide(){
+  const pw = document.getElementById('poolWrap'), ba = document.getElementById('boardArea');
+  if(document.body.classList.contains('phone')){
+    pw.classList.remove('dock-right'); ba.classList.remove('dock-left');
+    pw.style.transform = '';
+    pw.style.left = (rosterCol * 33.333) + '%';
+  } else {
+    pw.style.left = ''; pw.style.transform = '';
+    pw.classList.toggle('dock-right', rosterSide === 'right');
+    ba.classList.toggle('dock-left', rosterSide === 'right');
+  }
+}
+function swapRosterSide(){
+  if(document.body.classList.contains('phone')){
+    rosterCol = (rosterCol + 1) % 3;
+  } else {
+    rosterSide = (rosterSide === 'left') ? 'right' : 'left';
+  }
+  saveRosterPrefs(); applySide(); updateShiftPills();
+  if(!document.body.classList.contains('phone')) requestAnimationFrame(fitBoard);
+}
+/* smooth drag-to-column */
+(function initRosterDrag(){
+  const grip = document.getElementById('dragGrip');
+  if(!grip) return;
+  grip.addEventListener('pointerdown', e => {
+    if(!document.body.classList.contains('phone')) return;
+    e.preventDefault();
+    const pw = document.getElementById('poolWrap');
+    const board = document.getElementById('boardArea');
+    const colW = board.clientWidth / 3;
+    const startX = e.clientX;
+    const startPx = rosterCol * colW;
+    let target = rosterCol, moved = false;
+    pw.classList.add('dragging');
+    const cols = shifts.map(s => document.querySelector(`.shiftCol[data-shift="${s}"]`));
+    const paint = () => {
+      pw.style.transform = `translateX(${target * 100}%)`;
+      cols.forEach((c,i) => { if(c) c.classList.toggle('snap-target', i === target); });
+    };
+    const onMove = ev => {
+      moved = true;
+      const curPx = Math.max(0, Math.min(colW * 2, startPx + (ev.clientX - startX)));
+      const t = Math.max(0, Math.min(2, Math.round(curPx / colW)));
+      if(t !== target){ target = t; requestAnimationFrame(paint); }
+    };
+    const finish = () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', finish);
+      window.removeEventListener('pointercancel', finish);
+      pw.classList.remove('dragging');
+      cols.forEach(c => { if(c) c.classList.remove('snap-target'); });
+      if(moved){ rosterCol = target; saveRosterPrefs(); }
+      applySide(); updateShiftPills();
+    };
+    window.addEventListener('pointermove', onMove, {passive:false});
+    window.addEventListener('pointerup', finish);
+    window.addEventListener('pointercancel', finish);
+  });
+})();
+function arrangeChrome(phone, land){
+  const topbar = document.getElementById('topbar');
+  const cmdBar = document.getElementById('cmdBar');
+  const fl = document.getElementById('floatLayer');
+  const brand = document.querySelector('.brand');
+  const clk = document.querySelector('.clkChip');
+  const tools = document.querySelector('.btnRow');
+  const undo = document.querySelector('.cmdUndo');
+  const acts = document.querySelector('.cmdActions');
+  const corner = document.querySelector('.corner');
+  const name = document.getElementById('floatName');
+  const fh = document.getElementById('fHead');
+  const fb = document.getElementById('fBars');
+  if(!topbar || !cmdBar || !fl || !corner) return;
+  const grid = (boardMode === 'grid');
+  const barsOff = document.body.classList.contains('barsOff');
+
+  if(grid){
+    /* WIDE: no minimize at all - name + every control ride in one thin strip */
+    document.body.classList.remove('barsOff');
+    topbar.append(brand, clk, tools, undo, acts, corner);
+    corner.insertBefore(fh, corner.firstChild);
+    fl.appendChild(name); fl.appendChild(fb);
+    cmdBar.style.display = 'none';
+  } else if(barsOff){
+    /* TALL minimized: name + undo/redo + both buttons float together */
+    fl.appendChild(name); fl.appendChild(undo); fl.appendChild(fh); fl.appendChild(fb);
+    cmdBar.style.display = '';
+  } else {
+    /* TALL open: buttons park in the bar, undo/redo sit in the bottom bar */
+    topbar.append(brand, clk, tools, corner);
+    corner.insertBefore(fh, corner.firstChild);
+    corner.insertBefore(fb, fh.nextSibling);
+    cmdBar.append(undo, acts);
+    cmdBar.style.display = '';
+  }
+  sizeWideScreen();
+}
+function applyLayout(){
+  requestAnimationFrame(() => { positionFloat(); sizeWideScreen(); });
+  const phone = isPhoneNow();
+  const land = phone && isLandscape();
+  document.body.classList.toggle('phone', phone);
+  document.body.classList.toggle('landscape', land);
+  arrangeChrome(phone, land);
+  if(land) document.body.classList.remove('chrome-min');
+  updateViewSeg();
+  const pw = document.getElementById('poolWrap');
+  applySide();
+  if(phone){
+    pw.classList.remove('collapsed');
+    const rb = document.getElementById('rosterBtn');
+    if(rb) rb.textContent = pw.classList.contains('open') ? '✕ Hide Roster' : '☰ Show Roster';
+    updateShiftPills();
+    if(land){ requestAnimationFrame(fitBoard); }   /* width-fit keeps seats readable */
+    else if(fitActive){ requestAnimationFrame(reFit); }
+    else { applyZoom(boardZoom); }   /* keep whatever zoom the user set */
+  } else {
+    pw.classList.remove('open');
+    document.body.classList.remove('expanded');
+    expandedShift = null;
+    document.querySelectorAll('.shiftCol').forEach(c => c.classList.remove('active-shift'));
+    const rb = document.getElementById('rosterBtn');
+    if(rb) rb.textContent = pw.classList.contains('collapsed') ? '☰ Show Roster' : '✕ Hide Roster';
+    fitBoard();
+  }
+  refreshStatus();
+}
+function toggleBars(){
+  const keepZoom = boardZoom;          /* hold the exact zoom across the toggle */
+  document.body.classList.toggle('barsOff');
+  positionFloat(); applyLayout();
+  const b = document.getElementById('fBars');
+  if(b) b.textContent = document.body.classList.contains('barsOff') ? '\u2921' : '\u2922';
+  requestAnimationFrame(() => {
+    applyLayout();
+    if(boardMode !== 'grid'){ fitActive = null; applyZoom(keepZoom); }
+  });
+}
+function toggleHeads(){
+  const on = document.body.classList.toggle('headsOff');
+  requestAnimationFrame(sizeWideScreen);
+  const b = document.getElementById('fHead');
+  if(b) b.classList.toggle('off', on);
+}
+function updateViewSeg(){
+  const grid = (boardMode === 'grid');
+  const p = document.getElementById('segPhone'), f = document.getElementById('segFull');
+  if(p && f){ p.classList.toggle('on', !grid); f.classList.toggle('on', grid); }
+}
+function setBoardMode(m){
+  boardMode = m;
+  try{ localStorage.setItem('ccfdBoardMode', m); }catch(e){}
+  document.body.classList.toggle('gridMode', m === 'grid');
+  document.body.classList.remove('expanded');
+  document.querySelectorAll('.shiftCol').forEach(c => c.classList.remove('active-shift'));
+  expandedShift = null;
+  buildBoard(); refreshAllSlots(); updateCounts(); updateViewSeg();
+  applyZoom(1);
+  requestAnimationFrame(() => { positionFloat(); applyLayout(); });
+}
+/* Single authority for where the chrome buttons live.
+   TALL + bars open  -> [heads][bars] sit in the top bar corner
+   bars minimized    -> they float, and undo/redo float with them
+   WIDE              -> always floating                                  */
+/* WIDE: pin the A/B/C block to exactly one screen so the D row cannot ride up */
+function sizeWideScreen(){
+  const sc = document.querySelector('.mScreen');
+  if(!sc) return;
+  if(boardMode !== 'grid'){ sc.style.height = ''; return; }
+  const ba = document.getElementById('boardArea');
+  if(!ba) return;
+  sc.style.height = Math.max(140, ba.clientHeight - 10) + 'px';
+}
+function positionFloat(){
+  const tb = document.getElementById('topbar');
+  const off = document.body.classList.contains('barsOff') ? 0 : (tb ? tb.offsetHeight : 0);
+  document.documentElement.style.setProperty('--fTop', (off + 6) + 'px');
+}
+function setView(mode){
+  phoneManual = (mode === 'phone');
+  try{ localStorage.setItem('ccfdViewMode', mode); }catch(e){}
+  applyLayout();
+}
+function toggleLayout(){ setView(document.body.classList.contains('phone') ? 'full' : 'phone'); }
+function toggleRosterCollapse(){
+  const pw = document.getElementById('poolWrap');
+  const on = pw.classList.toggle('pool-collapsed');
+  const b = document.getElementById('rosterCollapse');
+  if(b) b.textContent = on ? '▼' : '▲';
+}
+function toggleShiftExpand(s){
+  if(!document.body.classList.contains('phone')) return;
+  if(expandedShift === s){
+    expandedShift = null;
+    document.body.classList.remove('expanded');
+    document.querySelectorAll('.shiftCol').forEach(c => c.classList.remove('active-shift'));
+  } else {
+    expandedShift = s;
+    document.body.classList.add('expanded');
+    document.querySelectorAll('.shiftCol').forEach(c => c.classList.toggle('active-shift', c.dataset.shift === s));
+  }
+}
+function updateShiftPills(){
+  const pills = document.querySelectorAll('#shiftPills i');
+  pills.forEach((p,i) => p.classList.toggle('on', i === rosterCol));
+}
+function toggleDrawer(){
+  const pw = document.getElementById('poolWrap');
+  pw.classList.toggle('open');
+  const open = pw.classList.contains('open');
+  document.getElementById('rosterBtn').textContent = open ? '✕ Hide Roster' : '☰ Show Roster';
+  updateShiftPills();
+}
+function shiftRosterBottom(){
+  const pw = document.getElementById('poolWrap');
+  if(!pw.classList.contains('open')){
+    pw.classList.add('open');
+    document.getElementById('rosterBtn').textContent = '✕ Hide Roster';
+  } else {
+    rosterCol = (rosterCol + 1) % 3;
+    saveRosterPrefs(); applySide();
+  }
+  updateShiftPills();
+}
+window.addEventListener('resize', () => requestAnimationFrame(applyLayout));
+window.addEventListener('orientationchange', () => setTimeout(() => { applyLayout(); sizeWideScreen(); }, 120));
+window.addEventListener('orientationchange', () => setTimeout(applyLayout, 250));
+
+/* ================= MENU / MISC ================= */
+function toggleMenu(){ document.getElementById('menuDrop').classList.toggle('open'); }
+function closeMenu(){ document.getElementById('menuDrop').classList.remove('open'); }
+function toggleBalance(){
+  balanceOn = !balanceOn;
+  const b = document.getElementById('balanceBtn');
+  b.textContent = 'Balance Paramedics: ' + (balanceOn ? 'On' : 'Off');
+  b.style.color = balanceOn ? 'var(--amber)' : '';
+}
+document.addEventListener('click', e => { if(!e.target.closest('.menuWrap')) closeMenu(); });
+function toggleInfo(listId, arrowId){
+  const l = document.getElementById(listId), a = document.getElementById(arrowId);
+  l.classList.toggle('open'); a.textContent = l.classList.contains('open') ? '▾' : '▸';
+}
+function closeModal(id){ document.getElementById(id).classList.remove('open'); }
+function resetBoard(){ document.getElementById('confirmOverlay').classList.add('open'); }
+function doReset(){
+  closeModal('confirmOverlay');
+  Object.keys(assignments).forEach(k => assignments[k] = null); placed = {};
+  preplaceDefaults(); selected = null; refreshAllSlots(); renderPool(); updateCounts(); recordHistory();
+}
+document.querySelectorAll('.overlay').forEach(o => o.addEventListener('pointerdown', e => { if(e.target === o) o.classList.remove('open'); }));
+
+/* ================= INIT ================= */
+initState(); preplaceDefaults(); buildLastNameMap(); buildBoard(); refreshAllSlots(); renderPool(); updateCounts();
+recordHistory();
+loadFromHash();
+requestAnimationFrame(applyLayout);
+updateShiftPills();
+/* SIDE BUILD: start with shift headers hidden for maximum board space */
+try{ const bm = localStorage.getItem('ccfdBoardMode'); if(bm === 'grid') setBoardMode('grid'); }catch(e){}
+updateViewSeg(); positionFloat();
+document.body.classList.add('headsOff');
+document.getElementById('fHead').classList.add('off');
+refreshStatus();
+maybeShowHowTo();
+</script>
+</body>
+</html>
