@@ -2,8 +2,13 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>CCFD Mock Bid Board</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Bid Board">
+<meta name="theme-color" content="#0e1113">
+<title>CCFD Bid Board — Side Build</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
 
@@ -27,7 +32,7 @@
   .clkChip{order:2;display:flex;align-items:center;gap:9px;min-width:0;
     background:rgba(242,167,27,.15);border:1px solid rgba(242,167,27,.3);border-radius:6px;padding:5px 12px;}
   .clkChip #statusLabel{display:none;}
-  .clkChip #statusName{font-family:'JetBrains Mono';font-size:14px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .clkChip #statusName{font-family:'Oswald',sans-serif;letter-spacing:.3px;font-size:15px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   #statusCancel{background:#161616;color:var(--amber);border:1px solid var(--amber);padding:4px 10px;border-radius:4px;
     font-family:'Oswald';font-weight:600;cursor:pointer;letter-spacing:1px;text-transform:uppercase;font-size:10px;display:none;flex-shrink:0;}
   .btnRow{order:3;display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
@@ -137,7 +142,7 @@
   #poolHeader .label{font-size:12px;letter-spacing:2px;color:var(--amber);text-transform:uppercase;font-weight:600;}
   #poolCount{font-family:'JetBrains Mono';font-size:11px;color:var(--text-dim);margin-top:2px;}
   #poolSearch{margin:10px 16px 6px;padding:8px 10px;width:calc(100% - 32px);background:var(--panel-2);
-    border:1px solid var(--line);border-radius:3px;color:var(--text);font-family:'JetBrains Mono';font-size:13px;}
+    border:1px solid var(--line);border-radius:3px;color:var(--text);font-family:'Oswald',sans-serif;font-size:14px;}
   #filterRow{display:flex;gap:5px;padding:0 16px 6px;flex-wrap:wrap;}
   .filterBtn{background:var(--panel-2);border:1px solid var(--line);color:var(--text-dim);font-family:'Oswald';
     font-size:11px;font-weight:600;letter-spacing:1px;padding:4px 10px;border-radius:3px;cursor:pointer;text-transform:uppercase;}
@@ -149,12 +154,12 @@
   #boardZoom{width:max-content;min-width:100%;transform-origin:top left;}
 
   .chip{background:var(--panel-2);border:1px solid var(--line);padding:7px 8px;border-radius:3px;
-    font-family:'JetBrains Mono';font-size:13px;font-weight:500;color:var(--text);display:flex;align-items:center;gap:5px;white-space:nowrap;}
+    font-family:'Oswald',sans-serif;letter-spacing:.3px;font-size:14px;font-weight:600;color:var(--text);display:flex;align-items:center;gap:5px;white-space:nowrap;}
   .chip .chipName{flex:1;overflow:hidden;text-overflow:ellipsis;}
   .chip .tag{font-size:9px;color:var(--text-dim);letter-spacing:1px;}
   .chip.dragging{opacity:.3;}
   .chip.onclock{border-color:var(--amber);background:rgba(242,167,27,.12);}
-  .codes{font-family:'JetBrains Mono';font-size:10px;color:var(--codes);letter-spacing:.5px;margin-left:6px;}
+  .codes{font-family:'Oswald',sans-serif;font-weight:600;letter-spacing:.8px;font-size:9px;color:var(--codes);letter-spacing:.5px;margin-left:6px;}
   .pmstar{color:var(--amber);font-weight:700;}
   .rdot{font-size:9px;margin-right:5px;line-height:1;}
   .role-capt{color:var(--role-capt);} .role-medic{color:var(--role-medic);}
@@ -226,16 +231,20 @@
 
   .stationBlock{margin-bottom:18px;padding-bottom:2px;}
   .stationTitle{font-size:14px;font-weight:600;letter-spacing:1.5px;color:var(--text);text-transform:uppercase;margin-bottom:7px;white-space:nowrap;}
-  .stationTitle.understaffed::after{content:'●';color:var(--red);font-size:9px;margin-left:7px;vertical-align:middle;}
+  .stationTitle.understaffed::after{content:'●';color:var(--red);font-size:9px;margin-left:7px;
+    vertical-align:baseline;line-height:0;position:relative;top:-1px;}
 
   .slot{background:var(--slot-empty);border:1px solid var(--line);border-radius:4px;padding:7px 10px;margin-bottom:5px;
     min-height:34px;display:flex;align-items:center;gap:6px;transition:border-color .1s, background .35s;}
   .slot.filled{background:var(--panel-2);border-color:var(--line);}
   .slot.dragover{border-color:var(--amber)!important;background:#26221080;}
   .slot .slotLabel{font-size:11px;letter-spacing:1px;color:var(--text-dim);text-transform:uppercase;min-width:112px;flex-shrink:0;}
-  .slot .slotName{flex:1;font-family:'JetBrains Mono';font-size:13px;font-weight:500;text-align:right;
+  .slot .slotName{flex:1;font-family:'Oswald',sans-serif;letter-spacing:.3px;font-size:14px;font-weight:600;text-align:right;
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .slot .slotName.empty{color:var(--text-dim);opacity:.5;font-style:italic;}
+  /* empty seats carry an invisible character so they keep full height
+     now that the '- open -' text is gone */
+  .slot .slotName.empty::after{content:"\00a0";}
   .slot .grip{display:none;}
   .slot.filled .grip{display:flex;}
   .slot .clearBtn{background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:13px;padding:0 2px;display:none;}
@@ -262,7 +271,7 @@
   .holGroup{margin-bottom:12px;break-inside:avoid;}
   .holGroupTitle{font-size:11px;font-weight:700;letter-spacing:1px;margin-bottom:4px;}
   .holGroupTitle.s-A{color:var(--red);} .holGroupTitle.s-B{color:var(--blue);} .holGroupTitle.s-C{color:var(--green);}
-  .hrow{display:flex;align-items:baseline;gap:8px;padding:2px 0;font-size:11px;font-family:'JetBrains Mono';}
+  .hrow{display:flex;align-items:baseline;gap:8px;padding:2px 0;font-size:11px;font-family:'Oswald',sans-serif;letter-spacing:.2px;}
   .hdate{color:var(--text-dim);min-width:70px;flex-shrink:0;} .hname{color:var(--text);}
 
   /* ---- VIEW SEGMENTED TOGGLE (Phone | Full) ---- */
@@ -273,7 +282,7 @@
 
   /* ---- GHOST + TOAST ---- */
   .dragGhost{position:fixed;z-index:9999;pointer-events:none;background:var(--amber);color:#161616;
-    font-family:'JetBrains Mono';font-size:13px;font-weight:700;padding:6px 12px;border-radius:4px;box-shadow:0 6px 18px rgba(0,0,0,.5);letter-spacing:.5px;}
+    font-family:'Oswald',sans-serif;letter-spacing:.5px;font-size:14px;font-weight:700;padding:6px 12px;border-radius:4px;box-shadow:0 6px 18px rgba(0,0,0,.5);letter-spacing:.5px;}
   #toast{position:fixed;top:104px;left:50%;transform:translateX(-50%);background:var(--red);color:#fff;
     font-family:'Oswald';font-weight:600;font-size:13px;letter-spacing:.4px;padding:9px 16px;border-radius:6px;
     box-shadow:0 6px 20px rgba(0,0,0,.5);z-index:300;opacity:0;pointer-events:none;transition:opacity .2s;max-width:min(90vw,520px);text-align:center;}
@@ -292,10 +301,10 @@
     color:var(--text);font-family:'JetBrains Mono';font-size:12px;padding:10px;resize:vertical;}
   .modal .row{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;align-items:center;}
   .modal input[type=text], .modal select{background:var(--panel-2);border:1px solid var(--line);border-radius:4px;
-    color:var(--text);font-family:'JetBrains Mono';font-size:13px;padding:8px 10px;}
+    color:var(--text);font-family:'Oswald',sans-serif;font-size:14px;padding:8px 10px;}
   .modal input[type=text]{flex:1;min-width:140px;}
   #rosterList{margin-top:14px;border-top:1px solid var(--line);max-height:280px;overflow-y:auto;}
-  .rItem{display:flex;align-items:center;gap:8px;padding:7px 2px;border-bottom:1px solid var(--line);font-family:'JetBrains Mono';font-size:13px;}
+  .rItem{display:flex;align-items:center;gap:8px;padding:7px 2px;border-bottom:1px solid var(--line);font-family:'Oswald',sans-serif;font-size:14px;}
   .rItem .rName{flex:1;} .rItem .rRank{font-size:10px;letter-spacing:1px;color:var(--text-dim);border:1px solid var(--line);padding:1px 6px;border-radius:3px;}
   .rItem .rDel{background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:14px;} .rItem .rDel:hover{color:var(--red);}
   input[type=file]{color:var(--text-dim);font-size:12px;}
@@ -323,9 +332,9 @@
   body.phone .counter b{font-size:9px;margin-left:1px;}
   body.phone .stationBlock{margin-bottom:6px;}
   body.phone .stationTitle{font-size:7.5px;letter-spacing:.3px;margin-bottom:2px;}
-  body.phone .slot{min-height:15px;padding:2px 3px;margin-bottom:1.5px;gap:2px;border-radius:2px;}
+  body.phone .slot{min-height:18px;padding:2px 4px;margin-bottom:1.5px;gap:3px;border-radius:2px;}
   body.phone .slot .slotLabel{display:none;}
-  body.phone .slot .slotName{font-size:7.5px;text-align:left;}
+  body.phone .slot .slotName{font-size:11px;text-align:left;}
   body.phone .slot .grip,body.phone .slot .clearBtn{display:none !important;}
   body.phone .codes{font-size:6px;margin-left:3px;}
   body.phone .rdot{font-size:5.5px;margin-right:3px;}
@@ -372,8 +381,8 @@
   body.phone.landscape .shiftHead .name{font-size:8px;}
   body.phone.landscape .counter{font-size:8.5px;} body.phone.landscape .counter b{font-size:11px;}
   body.phone.landscape .stationTitle{font-size:9.5px;}
-  body.phone.landscape .slot{min-height:18px;padding:2.5px 5px;}
-  body.phone.landscape .slot .slotName{font-size:9.5px;}
+  body.phone.landscape .slot{min-height:19px;padding:2.5px 5px;}
+  body.phone.landscape .slot .slotName{font-size:11px;}
   body.phone.landscape .codes{font-size:7.5px;}
   body.phone.landscape .rdot{font-size:7px;}
   body.phone.landscape .chip{font-size:10px;padding:4px 5px;}
@@ -416,9 +425,277 @@
     .role-capt{color:#b83227 !important;} .role-medic{color:#1f6fb2 !important;} .role-ff{color:#9a7d0a !important;} .role-bc{color:#000 !important;}
     #bottomInfo{display:block !important;} #bottomInfo .infoContent{display:block !important;} #footer,#bottomInfo{border-color:#999;}
   }
+  /* ============================================================
+     SIDE BUILD — mobile only. Maximize space, simplify.
+     ============================================================ */
+  html,body{ padding-top:env(safe-area-inset-top); padding-bottom:env(safe-area-inset-bottom); }
+
+  /* ---- Floating top layer: survives a full minimize ---- */
+  #floatLayer{position:fixed;top:calc(env(safe-area-inset-top) + var(--fTop, 4px));right:6px;z-index:500;
+    display:flex;align-items:center;gap:5px;pointer-events:none;transition:top .15s;}
+  #floatLayer > *{pointer-events:auto;}
+  #floatName{display:none;align-items:center;gap:5px;background:#0e1113;
+    border:1px solid rgba(242,167,27,.55);border-radius:20px;padding:4px 11px;
+    box-shadow:0 3px 12px rgba(0,0,0,.5);}
+  #floatName .fdot{width:6px;height:6px;border-radius:50%;background:var(--amber);flex-shrink:0;}
+  #floatNameText{font-family:'Oswald',sans-serif;letter-spacing:.3px;font-size:13px;font-weight:700;color:#fff;
+    white-space:nowrap;max-width:150px;overflow:hidden;text-overflow:ellipsis;}
+  #fBars,#fHead{width:26px;height:26px;flex-shrink:0;border-radius:50%;
+    background:#0e1113;border:1px solid rgba(242,167,27,.5);color:var(--amber);
+    font-size:11px;line-height:1;display:flex;align-items:center;justify-content:center;
+    padding:0;cursor:pointer;}
+  #fBars:active,#fHead:active{background:var(--amber);color:#161616;}
+  /* when parked in the top bar they match the other bar buttons */
+  .corner #fHead,.corner #fBars{width:auto;height:auto;border-radius:5px;
+    background:rgba(242,167,27,.14);border:1px solid rgba(242,167,27,.55);color:var(--amber);
+    font-size:12px;font-weight:700;padding:8px 12px;}
+  .corner #fHead:active,.corner #fBars:active{background:var(--amber);color:#161616;}
+  .corner #fHead.off{opacity:.75;}
+  /* undo/redo when floating alongside the pill */
+  #floatLayer .cmdUndo{display:flex;gap:5px;}
+  #floatLayer .cmdUndo button{width:23px;height:23px;padding:0;border-radius:50%;
+    background:#0e1113;border:1px solid rgba(242,167,27,.5);color:var(--amber);
+    font-size:12px;line-height:1;display:flex;align-items:center;justify-content:center;}
+  #fHead.off{opacity:.55;}
+  /* when bars are hidden, the floating name is the only place the on-clock name lives */
+  body.barsOff #topbar,body.barsOff #cmdBar{display:none !important;}
+  body.barsOff #floatName{display:flex;}
+  /* slim gutter so the floating cluster never overlaps the board */
+  body.barsOff #boardZoom{padding-top:30px;}
+  body.barsOff #floatName{padding:2px 9px;}
+  body.barsOff #floatNameText{font-size:11px;max-width:120px;}
+  body.barsOff #fBars,body.barsOff #fHead{width:23px;height:23px;font-size:10px;}
+
+  /* ---- Shift columns outlined in their own color ---- */
+  body.phone .shiftCol[data-shift="A"]{border:2px solid var(--red);}
+  body.phone .shiftCol[data-shift="B"]{border:2px solid var(--blue);}
+  body.phone .shiftCol[data-shift="C"]{border:2px solid var(--green);}
+  body.phone .shiftCol{border-radius:6px;}
+
+  /* ---- Headers hidden by default: no shift letter, no BC, no counts ---- */
+  body.headsOff .shiftHead,body.headsOff .counter{display:none;}
+  body.headsOff .shiftCol{padding-top:5px;}
+
+  /* ---- Placed names brighter + easier to read ---- */
+  body.phone .slot.filled{background:var(--panel-2);border-color:var(--line);}
+  body.phone .slot.filled .slotName{color:#fff;font-weight:700;}
+  body.phone .slot.filled .codes{color:rgba(242,167,27,.85);}
+  body.phone .slot:not(.filled) .slotName{color:#565c61;}
+
+  /* ---- Roster add: quals picker ---- */
+  .qualPick{display:inline-flex;gap:10px;align-items:center;}
+  .qualPick label{display:inline-flex;align-items:center;gap:4px;font-size:12px;
+    letter-spacing:.6px;color:var(--text-dim);text-transform:uppercase;cursor:pointer;}
+  .qualPick input{accent-color:var(--amber);width:15px;height:15px;}
+
+  /* ---- Side build is mobile only: drop the Phone|Full switch ---- */
+  /* ============================================================
+     GRID VIEW - shifts as rows, stations across.
+     A/B/C fill the screen; Training + Holding ("D") sit below the fold.
+     ============================================================ */
+  body.gridMode #boardZoom{width:100%;height:auto;}
+  /* mBoard is a plain block so the D row can sit BELOW the screenful instead of
+     competing with A/B/C for the same fixed height (that was squeezing the rows). */
+  body.gridMode #board.mBoard{display:block;padding:4px;height:auto;gap:0;}
+  body.gridMode .mScreen{display:flex;flex-direction:column;gap:3px;}
+
+  .mHead{display:flex;gap:3px;flex-shrink:0;}
+  .mCorner{flex:0 0 42px;}
+  .mH{flex:1;min-width:0;text-align:center;font-size:7.5px;font-weight:700;letter-spacing:.5px;
+    text-transform:uppercase;color:var(--amber);background:var(--panel);border:1px solid var(--line);
+    border-radius:3px;padding:2px 1px;white-space:nowrap;overflow:hidden;}
+
+  .mRow{display:flex;gap:3px;flex:1 1 0;min-height:66px;}
+  .mRow[data-shift="A"] .mLab{border-left:3px solid var(--red);}
+  .mRow[data-shift="B"] .mLab{border-left:3px solid var(--blue);}
+  .mRow[data-shift="C"] .mLab{border-left:3px solid var(--green);}
+  .mRow[data-shift="A"] .mCell{border-color:rgba(200,54,44,.4);}
+  .mRow[data-shift="B"] .mCell{border-color:rgba(79,131,194,.4);}
+  .mRow[data-shift="C"] .mCell{border-color:rgba(63,174,90,.4);}
+
+  .mLab{flex:0 0 46px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;
+    background:var(--line-soft);border:1px solid var(--line);border-radius:4px;padding:2px 1px;overflow:hidden;}
+  .mLab .mL{font-size:16px;font-weight:700;line-height:1.05;}
+  body:not(.headsOff) .mLab .mL{font-size:12px;}
+  .mRow[data-shift="A"] .mL{color:var(--red);}
+  .mRow[data-shift="B"] .mL{color:var(--blue);}
+  .mRow[data-shift="C"] .mL{color:var(--green);}
+  .mLab .mCnt{display:flex;flex-wrap:wrap;justify-content:center;gap:0 4px;font-size:5.5px;color:var(--text-dim);
+    text-transform:uppercase;letter-spacing:.2px;line-height:1.3;}
+  .mLab .mCnt b{font-family:'JetBrains Mono';font-size:7px;margin-left:2px;}
+  .mLab .slot{background:none;border:none;padding:0;margin:1px 0 0;min-height:0;justify-content:center;}
+  .mLab .slot .slotLabel{display:none;}
+  .mLab .slot .slotName{font-size:6.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;}
+  .mLab .slot .codes{display:none;}
+
+  .mCell{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;
+    background:var(--line-soft);border:1px solid var(--line);border-radius:4px;padding:2px;}
+  .mCellTtl{font-size:6.5px;line-height:1;margin:0 0 1px;color:var(--text-dim);text-align:center;flex-shrink:0;}
+  /* ABC rows: station name lives in the header row only. Title becomes a slim
+     understaffed bar so the red-dot warning survives without eating a line. */
+  body.gridMode .mRow:not(.dRow) .mCellTtl{font-size:0;height:3px;margin:0 0 2px;
+    border-radius:2px;background:transparent;}
+  body.gridMode .mRow:not(.dRow) .mCellTtl.understaffed{background:var(--red);}
+  body.gridMode .mRow:not(.dRow) .mCellTtl.understaffed::after{display:none;}
+  body.gridMode .mCell .slot{flex:1 1 0;margin:0;min-height:0;padding:1px 3px;gap:2px;}
+  body.gridMode .mCell .slot .slotLabel{display:none;}
+  body.gridMode .mCell .slot .slotName{font-size:7.5px;}
+  body.gridMode .mCell .slot .codes{font-size:5.5px;}
+  body.gridMode .mCell .slot .clearBtn{display:none;}
+  body.gridMode .mLab .slot{min-height:0;margin:1px 0 0;}
+  /* hard stop: nothing may bleed across a row boundary */
+  body.gridMode .mRow,body.gridMode .mCell,body.gridMode .mLab{overflow:hidden;}
+
+  /* the "D shift" strip - only reachable by scrolling, exactly as intended */
+  /* D row lives past the bottom edge no matter what - scroll to reach it */
+  body.gridMode .mRow.dRow{display:flex;gap:3px;min-height:78px;margin-top:14px;
+    border-top:2px dashed var(--line);padding-top:10px;}
+  .mRow.dRow .mLab{border-left:3px solid var(--text-dim);}
+  .mRow.dRow .mL{color:var(--text-dim);font-size:14px;}
+  .mRow.dRow .mCnt{font-size:5.5px;text-align:center;}
+  .mGhost{background:none;border-color:transparent;}
+
+  /* headers-off also strips the counts + BC out of the grid row labels */
+  body.headsOff .mLab .mCnt,body.headsOff .mLab .slot{display:none;}
+  body.headsOff .mLab{flex:0 0 26px;}
+  body.headsOff .mCorner{flex:0 0 26px;}
+  body.headsOff .mLab .mL{font-size:15px;}
+
+  /* grid mode has no per-shift expand */
+  body.gridMode .expIcon{display:none;}
+  /* WIDE is a fixed one-screen layout - zoom/fit controls are removed entirely */
+  body.gridMode .zoomGroup,body.gridMode #fitBtn,body.gridMode #fitAllBtn{display:none !important;}
+  /* ============================================================
+     WIDE - one thin strip carries everything. No minimize, no bottom bar.
+     Tuned for landscape; portrait is allowed to wrap.
+     ============================================================ */
+  body.gridMode #cmdBar{display:none !important;}
+  body.gridMode #fBars{display:none !important;}   /* no minimize in Wide */
+  body.gridMode #floatName{display:none !important;}
+  body.gridMode #topbar{padding:3px 8px;column-gap:6px;row-gap:3px;flex-wrap:wrap;}
+  body.gridMode .brand h1{font-size:12px;letter-spacing:.8px;}
+  body.gridMode .clkChip{padding:2px 9px;}
+  body.gridMode .clkChip #statusLabel{display:inline;font-size:7px;letter-spacing:.8px;
+    text-transform:uppercase;color:var(--amber);font-weight:600;}
+  body.gridMode .clkChip #statusName{font-size:11px;}
+  body.gridMode .btnRow{gap:5px;}
+  body.gridMode .viewSeg button{font-size:9px;padding:4px 9px;}
+  body.gridMode .cmdUndo button{padding:4px 9px;font-size:12px;}
+  body.gridMode #rosterBtn{padding:5px 10px;font-size:10px;}
+  body.gridMode #shiftBtn{padding:5px 9px;font-size:9px;}
+  body.gridMode .corner .btn{padding:5px 9px;font-size:10px;}
+  body.gridMode .corner #fHead{padding:5px 9px;font-size:11px;}
+  /* landscape is the priority: force the strip to a single row */
+  body.gridMode.landscape #topbar{flex-wrap:nowrap;overflow:visible;}
+  body.gridMode.landscape #topbar > *{min-width:0;}
+  body.gridMode .menuDrop{z-index:600;}
+  body.gridMode.landscape .brand h1{font-size:11px;}
+  body.gridMode.landscape .corner{margin-left:auto;}
+  /* below-fold row has no "D" label - just a spacer to keep columns aligned */
+  .mLabGhost{background:none !important;border-color:transparent !important;}
+  /* ============================================================
+     WIDE typography - condensed font buys ~30% more characters at
+     the same width, which is what makes the big size possible.
+     ============================================================ */
+  body.gridMode .mCell .slot .slotName{font-size:12px;
+    letter-spacing:.2px;font-weight:600;}
+  body.gridMode .mCell .slot.filled .slotName{font-weight:700;color:#fff;}
+  body.gridMode .mCell .slot .codes{display:none;}      /* role dot carries the role */
+  body.gridMode .mCell .slot .rdot{font-size:8px;}
+  body.gridMode .mCell .slot{gap:4px;padding:1px 5px;}
+
+  /* shift column collapses by default in Wide; the row's colored edge identifies it.
+     The header toggle brings it back. */
+  /* WIDE keeps the shift letter and BC; the toggle strips the PM/RS/AC counts,
+     which are the part that reads as clutter on a TV. */
+  body.gridMode.headsOff .mLab .mCnt{display:none;}
+  body.gridMode .mLab .mL{font-size:17px;}
+  body.gridMode .mLab .slot .slotName{font-size:8px;}
+  body.gridMode .mH{font-size:10px;}
+
+  /* ============================================================
+     TOP BAR ORDER (both views)
+     identity -> who's up -> view -> actions -> history -> display -> help
+     ============================================================ */
+  #topbar .brand{order:1;}
+  #topbar .clkChip{order:2;}
+  #topbar .btnRow{order:3;}
+  #topbar .cmdActions{order:4;}
+  #topbar .cmdUndo{order:5;}
+  #topbar .corner{order:6;margin-left:auto;}
+  #cmdBar .cmdUndo{order:1;} #cmdBar .cmdActions{order:2;margin-left:auto;}
+  /* code editor inside Edit Roster */
+  .qEdit{display:inline-flex;gap:4px;margin-left:auto;}
+  .qBtn{background:var(--panel-2);border:1px solid var(--line);color:var(--text-dim);
+    font-family:'Oswald',sans-serif;font-size:10px;font-weight:700;letter-spacing:.8px;
+    padding:3px 8px;border-radius:4px;cursor:pointer;}
+  .qBtn.on{background:rgba(242,167,27,.16);border-color:var(--amber);color:var(--amber);}
+  .rItem .rName{flex:0 1 auto;}
+  .rItem .rRank{font-family:'Oswald',sans-serif;font-size:10px;letter-spacing:1px;color:var(--text-dim);}
+  /* Tall portrait only: ▤ ⤢ ? ⋯ ride on the title row so the tool row
+     is the only extra line. Scoped so Wide and landscape are untouched. */
+  /* #topbar rules carry an ID, so these must too or they lose the cascade. */
+  body:not(.gridMode):not(.landscape) #topbar .brand{order:1;}
+  body:not(.gridMode):not(.landscape) #topbar .clkChip{order:2;}
+  body:not(.gridMode):not(.landscape) #topbar .corner{order:3;margin-left:auto;}
+  body:not(.gridMode):not(.landscape) #topbar .btnRow{order:4;flex-basis:100%;}
+  body:not(.gridMode):not(.landscape) #topbar .cmdActions{order:5;}
+  body:not(.gridMode):not(.landscape) #topbar .cmdUndo{order:6;}
+  body:not(.gridMode):not(.landscape) #topbar .corner .btn{padding:6px 9px;font-size:11px;}
+  body:not(.gridMode):not(.landscape) #topbar .corner #fHead,
+  body:not(.gridMode):not(.landscape) #topbar .corner #fBars{padding:6px 9px;font-size:11px;}
+  /* ============================================================
+     Uniform seat height - a filled seat holds a role dot (5.5px), a name (11px)
+     and codes (9px); an empty one holds a single space. Different tallest-child
+     metrics made filled rows taller, so columns drifted apart as people were
+     placed. Pinning every child to one line box makes all seats identical.
+     ============================================================ */
+  body.phone .slot{min-height:20px;align-items:center;}
+  body.phone .slot > *{line-height:14px;}
+  body.phone.landscape .slot{min-height:20px;}
+  body.phone.landscape .slot > *{line-height:14px;}
+  body.phone.expanded .slot{min-height:34px;}
+  body.phone.expanded .slot > *{line-height:20px;}
+
+  /* on-the-clock name gives a slow pulse so it's easy to find */
+  @keyframes clkPulse{
+    0%,84%,100%{box-shadow:0 0 0 0 rgba(242,167,27,0);border-color:rgba(242,167,27,.32);}
+    92%{box-shadow:0 0 0 5px rgba(242,167,27,.22);border-color:rgba(242,167,27,.95);}
+  }
+  .clkChip{animation:clkPulse 4.5s ease-in-out infinite;}
+  #floatName{animation:clkPulse 4.5s ease-in-out infinite;}
+  @media (prefers-reduced-motion: reduce){
+    .clkChip,#floatName{animation:none;}
+  }
+
+  /* TALL bottom bar: undo/redo to the right (thumb side), roster/shift left */
+  body.phone:not(.gridMode) #cmdBar .cmdActions{order:1;margin-left:0;}
+  body.phone:not(.gridMode) #cmdBar .cmdUndo{order:2;margin-left:auto;}
+  /* ============================================================
+     Hard-pin seat + title geometry. min-height still let a filled seat grow
+     past an empty one, and the understaffed dot inflated B's titles, so the
+     columns drifted apart. Fixed heights make drift impossible.
+     ============================================================ */
+  body.phone .slot{height:21px;min-height:21px;align-items:center;overflow:hidden;}
+  body.phone .slot > *{line-height:13px;}
+  body.phone .stationTitle{line-height:13px;height:16px;overflow:hidden;}
+  body.phone.landscape .slot{height:21px;min-height:21px;}
+  body.phone.expanded .slot{height:34px;min-height:34px;}
+  body.phone.expanded .slot > *{line-height:20px;}
+  body.phone.expanded .stationTitle{height:auto;line-height:1.3;}
+
+  /* pulse 25% quicker */
+  .clkChip,#floatName{animation-duration:3.4s !important;}
 </style>
 </head>
 <body>
+
+<!-- FLOATING TOP LAYER — always visible, survives full minimize -->
+<div id="floatLayer">
+  <div id="floatName"><span class="fdot"></span><span id="floatNameText">—</span></div>
+  <button id="fHead" onclick="toggleHeads()" title="Show/hide shift headers">▤</button>
+  <button id="fBars" onclick="toggleBars()" title="Hide/show bars">⤢</button>
+</div>
 
 <div id="topbar">
   <div class="brand"><h1>CCFD MOCK <span>BID</span></h1></div>
@@ -437,13 +714,12 @@
       <button class="btn ghost" id="fitBtn" onclick="fitBoard()">Fit</button>
       <button class="btn ghost" id="fitAllBtn" onclick="fitAll()" title="Fit the whole bid on screen">Fit All</button>
       <div class="viewSeg" id="viewSeg">
-        <button id="segPhone" onclick="setView('phone')">Phone</button>
-        <button id="segFull" onclick="setView('full')">Full</button>
+        <button id="segPhone" onclick="setBoardMode('cols')">Tall</button>
+        <button id="segFull" onclick="setBoardMode('grid')">Wide</button>
       </div>
     </div>
   </div>
   <div class="corner">
-    <button class="btn ghost" id="minBtn" onclick="toggleTopMin()" title="Minimize bar"><span class="bi">▲</span><span class="bt"> Min</span></button>
     <button class="btn ghost" id="helpBtn" onclick="openHowTo()" title="How to use">?</button>
     <div class="menuWrap">
       <button class="btn ghost" onclick="toggleMenu()" title="More"><span class="bi">⋯</span><span class="bt"> More</span></button>
@@ -528,13 +804,22 @@
   <div class="modal">
     <h2>How to use the bid board</h2>
     <p class="hint">A tool for running CCFD's annual station bid — place people into seats, shift by shift. Everyone gets their own board, so nothing you do affects anyone else.</p>
-    <div class="howRow"><b>Placing someone</b> The next person up is shown at the top as <i>On the clock</i> and is already selected. Just tap the seat you want them in. Tap any name in the roster to bid out of order.</div>
-    <div class="howRow"><b>Moving / removing</b> Tap someone already on the board to pick them up, then tap where they go. The ✕ on a seat clears it.</div>
-    <div class="howRow"><b>Seeing more</b> <b>Fit</b> fits the width, <b>All</b> fits the whole bid on screen, and −/+ zoom. On a phone, tap a shift letter (A/B/C) to blow that shift up; tap it again to go back.</div>
-    <div class="howRow"><b>The roster</b> <b>Show Roster</b> opens it. Drag the ⠿ handle at its top to park it over a different shift, or tap ⇄ to hop it along.</div>
-    <div class="howRow"><b>Why won't someone drop in?</b> A few rules are built in: captains only in captain seats, only AC-qualified firefighters can act as captain, the Paramedic seat needs a medic, and every rig has to get a medic before anyone doubles up.</div>
-    <div class="howRow"><b>Balance Paramedics</b> (in ⋯ Menu) keeps medics even across the three shifts by the end — it'll tell you which shift to bid instead.</div>
+    <div class="row" style="margin:0 0 14px;"><button class="btn edit" onclick="dismissHowTo()">Got it</button></div>
+
+    <div class="howRow"><b>Placing someone</b> Whoever is up next is already selected — their name shows in the amber pill up top. Tap the seat you want them in. Tap any name in the roster to bid out of order.</div>
+    <div class="howRow"><b>Moving / removing</b> Tap someone already on the board to pick them up, then tap where they go. The ✕ on a seat clears it. Filled seats are lighter than empty ones, and a seat flashes when someone lands in it.</div>
+    <div class="howRow"><b>Tall vs Wide</b> <b>Tall</b> is the standard board — three shift columns side by side, and the one to bid from on your phone. <b>Wide</b> turns it sideways: shifts become rows (A/B/C down the left) with the rigs running across, so far more of the bid fits at once. Wide is the one to use in landscape or mirrored to a TV.</div>
+    <div class="howRow"><b>The two buttons: ▤ and ⤢</b> <b>⤢</b> hides the bars completely so the board gets the whole screen — tap again to bring them back. Who's on the clock stays visible either way. <b>▤</b> hides the PM/RS/AC counts, which are the part that reads as clutter from across a room. Shift letters and BCs stay put.</div>
+    <div class="howRow"><b>Which shift is which</b> Each column and row is outlined in its own color — <b style="color:#c8362c">A red</b>, <b style="color:#4f83c2">B blue</b>, <b style="color:#3fae5a">C green</b>.</div>
+    <div class="howRow"><b>Floats, Training and Holding</b> Floats sit with their shift. In Wide, <b>Training and Holding are below the fold — scroll down</b> to reach them, so the three shifts get the whole screen.</div>
+    <div class="howRow"><b>Seeing more</b> <b>Fit</b> fits the width, <b>Fit All</b> fits the whole bid on screen, and −/+ zoom. Your zoom sticks when you hide the bars. In Tall, tap a shift letter (A/B/C) to blow that shift up; tap again to go back. Wide is a fixed one-screen layout, so it has no zoom.</div>
+    <div class="howRow"><b>The roster</b> <b>Show Roster</b> opens it. <b>⇄ Shift</b> slides it across so it sits over A, then B, then C. The small button next to <b>AC</b> hides the search bar and count for more room.</div>
+    <div class="howRow"><b>Why won't someone drop in?</b> The rules are built in: captains only in captain seats, only AC-qualified firefighters can act as captain, the Paramedic seat needs a medic, and every rig has to get a medic before anyone doubles up.</div>
+    <div class="howRow"><b>Balance Paramedics</b> (in ⋯ Menu) keeps medics even across the three shifts and tells you which shift to bid instead. It steps aside when a rig has no medic yet — covering every rig comes first.</div>
+    <div class="howRow"><b>Roster changes</b> <b>Edit Roster</b> (in ⋯ Menu) — add someone as <i>Last, First</i> with their rank, and tap <b>PM / RS / AC</b> on any row to turn codes on or off for people already on the list.</div>
     <div class="howRow"><b>Sharing</b> <b>Copy Share Link</b> gives a link that opens your exact bid. <b>Copy as Text</b> gives a plain list you can paste in a group text.</div>
+    <div class="howRow"><b>Full screen on your phone</b> Open the board in Safari, tap Share, then <b>Add to Home Screen</b>. Launching from that icon drops the address bar and tabs entirely — with ⤢ it's all board.</div>
+
     <p class="hint" style="margin-top:14px;">Tap <b>?</b> up top to see this again anytime.</p>
     <div class="row"><button class="btn edit" onclick="dismissHowTo()">Got it</button></div>
   </div>
@@ -580,7 +865,7 @@
 <div class="overlay" id="rosterOverlay">
   <div class="modal">
     <h2>Edit Roster</h2>
-    <p class="hint">Add or remove people. Type names as <b>Last, First</b>. Removing someone placed clears them off the board. New adds have no codes — tell me and I'll add their PM/RS/AC.</p>
+    <p class="hint">Add or remove people. Type names as <b>Last, First</b>. Removing someone placed clears them off the board. Tick the codes (PM / RS / AC) when you add someone.</p>
     <div class="row">
       <input type="text" id="newName" placeholder="Last, First">
       <select id="newRank">
@@ -588,6 +873,11 @@
         <option value="captain">Captain</option>
         <option value="bc">Battalion Chief</option>
       </select>
+      <span class="qualPick">
+        <label><input type="checkbox" id="qPM"> PM</label>
+        <label><input type="checkbox" id="qRS"> RS</label>
+        <label><input type="checkbox" id="qAC"> AC</label>
+      </span>
       <button class="btn edit" onclick="addPerson()">Add</button>
     </div>
     <div id="rosterList"></div>
@@ -624,12 +914,12 @@ let roster = [
   {name:"Gibbons, Anthony", rank:"captain", quals:[]},
   {name:"Mason, Matthew", rank:"captain", quals:[]},
   {name:"Caceres, Eric", rank:"captain", quals:["RS"]},
+  {name:"Ryan, Vincent", rank:"captain", quals:[]},
   {name:"McNichol Jr, Robert", rank:"ff", quals:["PM"]},
   {name:"Murray, Joseph", rank:"ff", quals:["RS"]},
   {name:"Cerecedes, Daniel", rank:"ff", quals:["PM","RS","AC"]},
   {name:"Hutchinson, Jonathan", rank:"ff", quals:[]},
   {name:"Bader, Travis", rank:"ff", quals:["PM","RS","AC"]},
-  {name:"Ryan, Vincent", rank:"ff", quals:["AC"]},
   {name:"Nuñez, Fernando", rank:"ff", quals:["PM","AC"]},
   {name:"Mallick, Ryan", rank:"ff", quals:["PM","AC"]},
   {name:"Pries, Brian", rank:"ff", quals:["PM","RS"]},
@@ -675,6 +965,10 @@ let roster = [
   {name:"Miller, Pat", rank:"ff", quals:["PM"]},
   {name:"Smith, Kennedy", rank:"ff", quals:[]},
   {name:"Washburn, Jesse", rank:"ff", quals:[]},
+  {name:"Abella, Powell", rank:"ff", quals:[]},
+  {name:"Lopiccolo, Carlo", rank:"ff", quals:[]},
+  {name:"Jimenez, Leo", rank:"ff", quals:[]},
+  {name:"Shaffer, Jimmy", rank:"ff", quals:[]},
 ];
 
 const bcDefaults = { A:"Pera, Casey", B:"Vella, Billy", C:"Murphy, Pat" };
@@ -776,7 +1070,7 @@ function slotHTML(id){
   d.className = 'slot'; d.dataset.slotid = id;
   d.innerHTML = `
     <span class="slotLabel">${m.label}</span>
-    <span class="slotName empty">— open —</span>
+    <span class="slotName empty"></span>
     <span class="grip" title="Drag">⠿</span>
     <button class="clearBtn" title="Clear">✕</button>`;
   d.querySelector('.clearBtn').addEventListener('click', ev => {
@@ -793,7 +1087,9 @@ function slotHTML(id){
 }
 
 function buildBoard(){
+  if(boardMode === 'grid') return buildMatrixBoard();
   const board = document.getElementById('board');
+  board.className = '';
   board.innerHTML = '';
   shifts.forEach(shift => {
     const col = document.createElement('div');
@@ -839,10 +1135,85 @@ function buildBoard(){
   holdSlots.forEach(k => holdBlock.appendChild(slotHTML(`off|${k}`)));
   footer.appendChild(holdBlock);
 
+  renderHolidays();
+}
+function renderHolidays(){
   document.getElementById('holList').innerHTML = '<div id="holWrap">' + shifts.map(s => {
     const rows = holidaysByShift[s].map(h => `<div class="hrow"><span class="hdate">${h[0]}</span><span class="hname">${h[1]}</span></div>`).join('');
     return `<div class="holGroup"><div class="holGroupTitle s-${s}">${s} Shift (${holidaysByShift[s].length})</div>${rows}</div>`;
   }).join('') + '</div>';
+}
+
+/* ---------- WIDE VIEW: shifts as rows, stations across ---------- */
+function rigLabel(st){
+  if(st.id === 't34') return 'T34';
+  if(st.id === 'e34') return 'E34';
+  return 'E' + st.id;
+}
+function buildMatrixBoard(){
+  const board = document.getElementById('board');
+  board.className = 'mBoard';
+  board.innerHTML = '';
+
+  const head = document.createElement('div');
+  head.className = 'mHead';
+  head.innerHTML = '<div class="mCorner"></div>' +
+    stations.map(st => `<div class="mH">${rigLabel(st)}</div>`).join('') +
+    '<div class="mH">Floats</div>';
+
+  /* everything inside .mScreen is exactly one screenful - D row lands below it */
+  const screen = document.createElement('div');
+  screen.className = 'mScreen';
+  screen.appendChild(head);
+
+  shifts.forEach(shift => {
+    const row = document.createElement('div');
+    row.className = 'mRow'; row.dataset.shift = shift;
+    const lab = document.createElement('div');
+    lab.className = 'mLab';
+    lab.innerHTML = `<div class="mL">${shift}</div>
+      <div class="mCnt"><span class="c-pm">PM<b id="cnt-${shift}-pm">0</b></span><span class="c-rs">RS<b id="cnt-${shift}-rs">0</b></span><span class="c-ac">AC<b id="cnt-${shift}-ac">0</b></span><span class="c-open">OP<b id="cnt-${shift}-open">0</b></span></div>`;
+    lab.appendChild(slotHTML(`${shift}|bc|chief`));
+    row.appendChild(lab);
+    stations.forEach(st => {
+      const cell = document.createElement('div');
+      cell.className = 'mCell';
+      cell.innerHTML = `<div class="stationTitle mCellTtl" id="sttl-${shift}-${st.id}">${rigLabel(st)}</div>`;
+      st.slots.forEach(sl => cell.appendChild(slotHTML(`${shift}|${st.id}|${sl.key}`)));
+      row.appendChild(cell);
+    });
+    const fc = document.createElement('div');
+    fc.className = 'mCell';
+    fc.innerHTML = '<div class="stationTitle mCellTtl">Floats</div>';
+    floatSlots.forEach(k => fc.appendChild(slotHTML(`float|${shift}|${k}`)));
+    row.appendChild(fc);
+    screen.appendChild(row);
+  });
+  board.appendChild(screen);
+
+  /* Training + Holding ride below the fold like a "D shift" - scroll to reach them */
+  const d = document.createElement('div');
+  d.className = 'mRow dRow';
+  d.innerHTML = '<div class="mLab mLabGhost"></div>';
+  let dCells = 0;
+  const tc = document.createElement('div');
+  tc.className = 'mCell';
+  tc.innerHTML = '<div class="stationTitle mCellTtl">Training</div>';
+  tc.appendChild(slotHTML('off|tbc')); tc.appendChild(slotHTML('off|tcap'));
+  d.appendChild(tc); dCells++;
+  const hc = document.createElement('div');
+  hc.className = 'mCell';
+  hc.innerHTML = '<div class="stationTitle mCellTtl">Holding</div>';
+  holdSlots.forEach(k => hc.appendChild(slotHTML(`off|${k}`)));
+  d.appendChild(hc); dCells++;
+  /* ghost cells keep the D row aligned to the rig columns above */
+  for(let i = dCells; i < stations.length; i++){
+    const gap = document.createElement('div'); gap.className = 'mCell mGhost'; d.appendChild(gap);
+  }
+  board.appendChild(d);
+
+  document.getElementById('footer').innerHTML = '';
+  renderHolidays();
 }
 
 function refreshSlot(id){
@@ -856,7 +1227,7 @@ function refreshSlot(id){
     nameSpan.innerHTML = `${roleDot(name)}<span class="pname">${name}</span><span class="sname">${shortName(name)}</span>${codesHTML(name, isCapt)}`;
     nameSpan.classList.remove('empty');
   } else {
-    nameSpan.innerHTML = '— open —'; nameSpan.classList.add('empty');
+    nameSpan.innerHTML = ''; nameSpan.classList.add('empty');
   }
 }
 function refreshAllSlots(){ Object.keys(slotMeta).forEach(refreshSlot); }
@@ -980,13 +1351,15 @@ function refreshStatus(){
   if(selected && selected.auto){
     label.textContent = 'On the clock'; nameEl.textContent = disp(selected.name); cancel.style.display = 'none';
   } else if(selected && selected.sourceType==='pool'){
-    label.textContent = 'Selected — tap a seat'; nameEl.textContent = disp(selected.name); cancel.style.display = 'inline-block';
+    label.textContent = ''; nameEl.textContent = disp(selected.name); cancel.style.display = 'inline-block';
   } else if(selected){
-    label.textContent = 'Moving — tap a seat'; nameEl.textContent = disp(selected.name); cancel.style.display = 'inline-block';
+    label.textContent = ''; nameEl.textContent = disp(selected.name); cancel.style.display = 'inline-block';
   } else {
     const n = onTheClock();
     label.textContent = 'On the clock'; nameEl.textContent = n ? disp(n) : 'All placed'; cancel.style.display = 'none';
   }
+  const ft = document.getElementById('floatNameText');
+  if(ft) ft.textContent = nameEl.textContent;
 }
 function cancelSelection(){ selected = null; ensureClockSelection(); renderSelection(); }
 function clearSelection(){ selected = null; renderSelection(); }
@@ -1129,6 +1502,20 @@ function balanceBlock(payload, targetId){
   if(!balanceOn || !isMedic(payload.name)) return null;
   const kind = slotMeta[targetId].kind;
   if(!['medic','flex','float'].includes(kind)) return null;
+  /* Every rig has to end the bid with a medic. If this rig still has none,
+     coverage outranks shift balance - otherwise the last uncovered rigs could
+     never be filled and the bid cannot legally finish. */
+  if(!targetId.startsWith('float|') && !targetId.startsWith('off|')){
+    const p0 = targetId.split('|'); const S0 = p0[0], ST0 = p0[1];
+    const st0 = stations.find(x => x.id === ST0);
+    if(st0){
+      const covered = st0.slots.some(sl => {
+        const n = assignments[`${S0}|${ST0}|${sl.key}`];
+        return n && n !== payload.name && isMedic(n);
+      });
+      if(!covered) return null;
+    }
+  }
   const shift = targetId.startsWith('float|') ? targetId.split('|')[1] : targetId.split('|')[0];
   const {base, R} = balanceState(payload.name);
   const test = s => { const b = {A:base.A, B:base.B, C:base.C}; b[s]++; return canBalance([b.A,b.B,b.C], R); };
@@ -1355,8 +1742,23 @@ function addPerson(){
   const inp = document.getElementById('newName'), name = inp.value.trim();
   if(!name){ inp.focus(); return; }
   if(roster.some(r => r.name.toLowerCase() === name.toLowerCase())){ alert('Already on the roster.'); return; }
-  roster.push({name, rank: document.getElementById('newRank').value, quals:[]}); buildLastNameMap();
-  inp.value = ''; renderRosterList(); renderPool(); recordHistory();
+  const q = [];
+  if(document.getElementById('qPM').checked) q.push('PM');
+  if(document.getElementById('qRS').checked) q.push('RS');
+  if(document.getElementById('qAC').checked) q.push('AC');
+  roster.push({name, rank: document.getElementById('newRank').value, quals:q}); buildLastNameMap();
+  inp.value = '';
+  ['qPM','qRS','qAC'].forEach(id => document.getElementById(id).checked = false);
+  renderRosterList(); renderPool(); recordHistory();
+}
+function toggleQual(name, code){
+  const p = roster.find(r => r.name === name); if(!p) return;
+  p.quals = p.quals || [];
+  const i = p.quals.indexOf(code);
+  if(i >= 0) p.quals.splice(i, 1); else p.quals.push(code);
+  p.quals = CODE_ORDER.filter(c => p.quals.includes(c));
+  renderRosterList(); renderPool(); refreshAllSlots(); updateCounts(); recordHistory();
+  showToast(`${shortName(name)}: ${p.quals.length ? p.quals.join(' ') : 'no codes'}`, 'info');
 }
 function removePerson(name){
   if(placed[name]){ const id = placed[name]; assignments[id]=null; delete placed[name]; refreshSlot(id); }
@@ -1369,7 +1771,13 @@ function renderRosterList(){
     const row = document.createElement('div'); row.className = 'rItem';
     const label = r.rank==='captain' ? 'CAPT' : r.rank==='bc' ? 'BC' : 'FF';
     const q = (r.quals||[]).join(' ');
-    row.innerHTML = `<span class="rName">${r.name} <span class="codes">${q}</span></span><span class="rRank">${label}</span><button class="rDel" title="Remove">✕</button>`;
+    const has = c => (r.quals||[]).includes(c);
+    row.innerHTML = `<span class="rName">${r.name}</span><span class="rRank">${label}</span>` +
+      `<span class="qEdit">` +
+      ['PM','RS','AC'].map(c => `<button class="qBtn${has(c)?' on':''}" data-q="${c}">${c}</button>`).join('') +
+      `</span><button class="rDel" title="Remove">✕</button>`;
+    row.querySelectorAll('.qBtn').forEach(b =>
+      b.addEventListener('click', () => toggleQual(r.name, b.dataset.q)));
     row.querySelector('.rDel').addEventListener('click', () => removePerson(r.name));
     list.appendChild(row);
   });
@@ -1377,10 +1785,17 @@ function renderRosterList(){
 
 /* ================= ZOOM / LAYOUT ================= */
 let boardZoom = 1, fitActive = false;
-function clampZoom(z){ return Math.max(0.15, Math.min(3.0, z)); }
-function applyZoom(z){ boardZoom = clampZoom(z); document.getElementById('boardZoom').style.zoom = boardZoom; document.getElementById('zlabel').textContent = Math.round(boardZoom*100) + '%'; }
+function clampZoom(z){ return Math.max(0.05, Math.min(3.0, z)); }
+function applyZoom(z){
+  if(boardMode === 'grid'){
+    boardZoom = 1;
+    document.getElementById('boardZoom').style.zoom = 1;
+    const zl = document.getElementById('zlabel'); if(zl) zl.textContent = '100%';
+    return;
+  } boardZoom = clampZoom(z); document.getElementById('boardZoom').style.zoom = boardZoom; document.getElementById('zlabel').textContent = Math.round(boardZoom*100) + '%'; }
 function zoomStep(d){ fitActive = null; applyZoom(boardZoom + d); }
 function fitBoard(){
+  if(boardMode === 'grid'){ applyZoom(1); return; }
   // Fit = fill the width; scroll vertically through stations if needed
   const bz = document.getElementById('boardZoom'); bz.style.zoom = 1;
   const natural = document.getElementById('board').scrollWidth;
@@ -1388,11 +1803,12 @@ function fitBoard(){
   applyZoom(natural ? avail / natural : 1); fitActive = 'width';
 }
 function fitAll(){
+  if(boardMode === 'grid'){ applyZoom(1); return; }
   // Fit All = whole board visible at once (both dimensions), no scrolling
   const bz = document.getElementById('boardZoom'); bz.style.zoom = 1;
-  const board = document.getElementById('board');
   const area = document.getElementById('boardArea');
-  const w = board.scrollWidth, h = board.scrollHeight;
+  /* measure the whole zoom wrapper so Floats, Training and Holding are counted */
+  const w = bz.scrollWidth, h = bz.scrollHeight;
   const aw = area.clientWidth - 4, ah = area.clientHeight - 6;
   if(!w || !h) return;
   applyZoom(Math.min(aw / w, ah / h)); fitActive = 'all';
@@ -1406,12 +1822,14 @@ function toggleRoster(){
   requestAnimationFrame(fitBoard);
 }
 let phoneManual = null, rosterSide = 'left', rosterCol = 0, expandedShift = null;
+let boardMode = 'cols';
 try{
   const s = localStorage.getItem('ccfdRosterSide'); if(s === 'left' || s === 'right') rosterSide = s;
   const c = parseInt(localStorage.getItem('ccfdRosterCol'), 10); if(c >= 0 && c <= 2) rosterCol = c;
   const v = localStorage.getItem('ccfdViewMode'); if(v === 'phone') phoneManual = true; else if(v === 'full') phoneManual = false;
 }catch(e){}
-function isPhoneNow(){
+function isPhoneNow(){ return true; }
+function isPhoneNow_unused(){
   if(phoneManual !== null) return phoneManual;
   return Math.min(window.innerWidth, window.innerHeight) <= 500;
 }
@@ -1482,29 +1900,43 @@ function swapRosterSide(){
 function arrangeChrome(phone, land){
   const topbar = document.getElementById('topbar');
   const cmdBar = document.getElementById('cmdBar');
+  const fl = document.getElementById('floatLayer');
   const brand = document.querySelector('.brand');
   const clk = document.querySelector('.clkChip');
   const tools = document.querySelector('.btnRow');
   const undo = document.querySelector('.cmdUndo');
   const acts = document.querySelector('.cmdActions');
   const corner = document.querySelector('.corner');
-  if(!phone){
-    // FULL VIEW (portrait + landscape): everything in the top bar, no bottom bar
+  const name = document.getElementById('floatName');
+  const fh = document.getElementById('fHead');
+  const fb = document.getElementById('fBars');
+  if(!topbar || !cmdBar || !fl || !corner) return;
+  const grid = (boardMode === 'grid');
+  const barsOff = document.body.classList.contains('barsOff');
+
+  if(grid){
+    /* WIDE: no minimize at all - name + every control ride in one thin strip */
+    document.body.classList.remove('barsOff');
     topbar.append(brand, clk, tools, undo, acts, corner);
+    corner.insertBefore(fh, corner.firstChild);
+    fl.appendChild(name); fl.appendChild(fb);
     cmdBar.style.display = 'none';
-  } else if(land){
-    // PHONE LANDSCAPE: title + name + sizing tools up top; undo/redo + roster in the bottom bar; no minimize
-    topbar.append(brand, clk, tools, corner);
-    cmdBar.append(undo, acts);
+  } else if(barsOff){
+    /* TALL minimized: name + undo/redo + both buttons float together */
+    fl.appendChild(name); fl.appendChild(undo); fl.appendChild(fh); fl.appendChild(fb);
     cmdBar.style.display = '';
   } else {
-    // PHONE PORTRAIT: compact name up top; undo/redo + roster in the bottom bar
+    /* TALL open: buttons park in the bar, undo/redo sit in the bottom bar */
     topbar.append(brand, clk, tools, corner);
+    corner.insertBefore(fh, corner.firstChild);
+    corner.insertBefore(fb, fh.nextSibling);
     cmdBar.append(undo, acts);
     cmdBar.style.display = '';
   }
+  sizeWideScreen();
 }
 function applyLayout(){
+  requestAnimationFrame(() => { positionFloat(); sizeWideScreen(); });
   const phone = isPhoneNow();
   const land = phone && isLandscape();
   document.body.classList.toggle('phone', phone);
@@ -1519,9 +1951,9 @@ function applyLayout(){
     const rb = document.getElementById('rosterBtn');
     if(rb) rb.textContent = pw.classList.contains('open') ? '✕ Hide Roster' : '☰ Show Roster';
     updateShiftPills();
-    if(land){ requestAnimationFrame(fitAll); }
+    if(land){ requestAnimationFrame(fitBoard); }   /* width-fit keeps seats readable */
     else if(fitActive){ requestAnimationFrame(reFit); }
-    else { applyZoom(1); }
+    else { applyZoom(boardZoom); }   /* keep whatever zoom the user set */
   } else {
     pw.classList.remove('open');
     document.body.classList.remove('expanded');
@@ -1533,15 +1965,56 @@ function applyLayout(){
   }
   refreshStatus();
 }
-function toggleTopMin(){
-  const min = document.body.classList.toggle('chrome-min');
-  document.getElementById('minBtn').textContent = min ? '▼ Show' : '▲ Min';
-  if(fitActive) requestAnimationFrame(reFit);
+function toggleBars(){
+  const keepZoom = boardZoom;          /* hold the exact zoom across the toggle */
+  document.body.classList.toggle('barsOff');
+  positionFloat(); applyLayout();
+  const b = document.getElementById('fBars');
+  if(b) b.textContent = document.body.classList.contains('barsOff') ? '\u2921' : '\u2922';
+  requestAnimationFrame(() => {
+    applyLayout();
+    if(boardMode !== 'grid'){ fitActive = null; applyZoom(keepZoom); }
+  });
+}
+function toggleHeads(){
+  const on = document.body.classList.toggle('headsOff');
+  requestAnimationFrame(sizeWideScreen);
+  const b = document.getElementById('fHead');
+  if(b) b.classList.toggle('off', on);
 }
 function updateViewSeg(){
-  const phone = document.body.classList.contains('phone');
+  const grid = (boardMode === 'grid');
   const p = document.getElementById('segPhone'), f = document.getElementById('segFull');
-  if(p && f){ p.classList.toggle('on', phone); f.classList.toggle('on', !phone); }
+  if(p && f){ p.classList.toggle('on', !grid); f.classList.toggle('on', grid); }
+}
+function setBoardMode(m){
+  boardMode = m;
+  try{ localStorage.setItem('ccfdBoardMode', m); }catch(e){}
+  document.body.classList.toggle('gridMode', m === 'grid');
+  document.body.classList.remove('expanded');
+  document.querySelectorAll('.shiftCol').forEach(c => c.classList.remove('active-shift'));
+  expandedShift = null;
+  buildBoard(); refreshAllSlots(); updateCounts(); updateViewSeg();
+  applyZoom(1);
+  requestAnimationFrame(() => { positionFloat(); applyLayout(); });
+}
+/* Single authority for where the chrome buttons live.
+   TALL + bars open  -> [heads][bars] sit in the top bar corner
+   bars minimized    -> they float, and undo/redo float with them
+   WIDE              -> always floating                                  */
+/* WIDE: pin the A/B/C block to exactly one screen so the D row cannot ride up */
+function sizeWideScreen(){
+  const sc = document.querySelector('.mScreen');
+  if(!sc) return;
+  if(boardMode !== 'grid'){ sc.style.height = ''; return; }
+  const ba = document.getElementById('boardArea');
+  if(!ba) return;
+  sc.style.height = Math.max(140, ba.clientHeight - 10) + 'px';
+}
+function positionFloat(){
+  const tb = document.getElementById('topbar');
+  const off = document.body.classList.contains('barsOff') ? 0 : (tb ? tb.offsetHeight : 0);
+  document.documentElement.style.setProperty('--fTop', (off + 6) + 'px');
 }
 function setView(mode){
   phoneManual = (mode === 'phone');
@@ -1590,6 +2063,7 @@ function shiftRosterBottom(){
   updateShiftPills();
 }
 window.addEventListener('resize', () => requestAnimationFrame(applyLayout));
+window.addEventListener('orientationchange', () => setTimeout(() => { applyLayout(); sizeWideScreen(); }, 120));
 window.addEventListener('orientationchange', () => setTimeout(applyLayout, 250));
 
 /* ================= MENU / MISC ================= */
@@ -1621,6 +2095,12 @@ recordHistory();
 loadFromHash();
 requestAnimationFrame(applyLayout);
 updateShiftPills();
+/* SIDE BUILD: start with shift headers hidden for maximum board space */
+try{ const bm = localStorage.getItem('ccfdBoardMode'); if(bm === 'grid') setBoardMode('grid'); }catch(e){}
+updateViewSeg(); positionFloat();
+document.body.classList.add('headsOff');
+document.getElementById('fHead').classList.add('off');
+refreshStatus();
 maybeShowHowTo();
 </script>
 </body>
