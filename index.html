@@ -429,7 +429,10 @@
   /* ============================================================
      SIDE BUILD — mobile only. Maximize space, simplify.
      ============================================================ */
-  html,body{ padding-top:env(safe-area-inset-top); padding-bottom:env(safe-area-inset-bottom);
+  /* Safe-area inset applied ONCE. Putting it on html AND body doubled it,
+     which in landscape ate ~200px of width and squeezed the top strip. */
+  html{ padding:0; }
+  body{ padding-top:env(safe-area-inset-top); padding-bottom:env(safe-area-inset-bottom);
     padding-left:env(safe-area-inset-left); padding-right:env(safe-area-inset-right); }
 
   /* ---- Floating top layer: survives a full minimize ---- */
@@ -589,8 +592,9 @@
   body.gridMode .corner .btn{padding:5px 9px;font-size:10px;}
   body.gridMode .corner #fHead{padding:5px 9px;font-size:11px;}
   /* landscape is the priority: force the strip to a single row */
-  body.gridMode.landscape #topbar{flex-wrap:nowrap;overflow:visible;}
-  body.gridMode.landscape #topbar > *{min-width:0;}
+  /* wrap (not nowrap) so a tight fit gives a second row instead of overlap.
+     No min-width:0 - items must not shrink below their own nowrap text. */
+  body.gridMode.landscape #topbar{flex-wrap:wrap;overflow:visible;}
   body.gridMode .menuDrop{z-index:600;}
   body.gridMode.landscape .brand h1{font-size:11px;}
   body.gridMode.landscape .corner{margin-left:auto;}
