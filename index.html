@@ -17,6 +17,7 @@
     --amber:#f2a71b; --red:#c8362c; --teal:#2f9c95; --blue:#4f83c2; --green:#3fae5a; --violet:#9b7fc7;
     --role-capt:#ff6f61; --role-medic:#4fb0ff; --role-ff:#f3c84e;
     --text:#e8e6df; --text-dim:#8b9195; --slot-empty:#14181a; --codes:#5f666b;
+    --warn:#ff8c1a;   /* understaffed - deliberately not red, which reads as A shift */
   }
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;background:var(--bg);color:var(--text);
@@ -231,7 +232,7 @@
 
   .stationBlock{margin-bottom:18px;padding-bottom:2px;}
   .stationTitle{font-size:14px;font-weight:600;letter-spacing:1.5px;color:var(--text);text-transform:uppercase;margin-bottom:7px;white-space:nowrap;}
-  .stationTitle.understaffed::after{content:'●';color:var(--red);font-size:9px;margin-left:7px;
+  .stationTitle.understaffed::after{content:'\25B2';color:var(--warn);font-size:8px;margin-left:7px;
     vertical-align:baseline;line-height:0;position:relative;top:-1px;}
 
   .slot{background:var(--slot-empty);border:1px solid var(--line);border-radius:4px;padding:7px 10px;margin-bottom:5px;
@@ -428,10 +429,12 @@
   /* ============================================================
      SIDE BUILD — mobile only. Maximize space, simplify.
      ============================================================ */
-  html,body{ padding-top:env(safe-area-inset-top); padding-bottom:env(safe-area-inset-bottom); }
+  html,body{ padding-top:env(safe-area-inset-top); padding-bottom:env(safe-area-inset-bottom);
+    padding-left:env(safe-area-inset-left); padding-right:env(safe-area-inset-right); }
 
   /* ---- Floating top layer: survives a full minimize ---- */
-  #floatLayer{position:fixed;top:calc(env(safe-area-inset-top) + var(--fTop, 4px));right:6px;z-index:500;
+  #floatLayer{position:fixed;top:calc(env(safe-area-inset-top) + var(--fTop, 4px));
+    right:calc(env(safe-area-inset-right) + 6px);z-index:500;
     display:flex;align-items:center;gap:5px;pointer-events:none;transition:top .15s;}
   #floatLayer > *{pointer-events:auto;}
   #floatName{display:none;align-items:center;gap:5px;background:#0e1113;
@@ -535,7 +538,7 @@
      understaffed bar so the red-dot warning survives without eating a line. */
   body.gridMode .mRow:not(.dRow) .mCellTtl{font-size:0;height:3px;margin:0 0 2px;
     border-radius:2px;background:transparent;}
-  body.gridMode .mRow:not(.dRow) .mCellTtl.understaffed{background:var(--red);}
+  body.gridMode .mRow:not(.dRow) .mCellTtl.understaffed{background:var(--warn);}
   body.gridMode .mRow:not(.dRow) .mCellTtl.understaffed::after{display:none;}
   body.gridMode .mCell .slot{flex:1 1 0;margin:0;min-height:0;padding:1px 3px;gap:2px;}
   body.gridMode .mCell .slot .slotLabel{display:none;}
@@ -686,9 +689,54 @@
 
   /* pulse 25% quicker */
   .clkChip,#floatName{animation-duration:3.4s !important;}
+  /* ============================================================
+     ROTATE GATE - only in Wide + portrait, only until they rotate
+     ============================================================ */
+  #rotateGate{position:fixed;inset:0;z-index:900;background:var(--bg);
+    display:none;align-items:center;justify-content:center;padding:26px;text-align:center;}
+  body.gridMode:not(.landscape) #rotateGate{display:flex;}
+  body.rgDismissed #rotateGate{display:none !important;}
+  .rgCard{max-width:330px;}
+  .rgPhone{width:62px;height:104px;margin:0 auto;border:3px solid var(--amber);border-radius:12px;
+    position:relative;animation:rgSpin 3s ease-in-out infinite;}
+  .rgIsland{position:absolute;top:7px;left:50%;transform:translateX(-50%);
+    width:22px;height:5px;border-radius:3px;background:var(--amber);}
+  @keyframes rgSpin{
+    0%,22%{transform:rotate(0deg);}
+    55%,78%{transform:rotate(90deg);}   /* clockwise - island ends on the right */
+    100%{transform:rotate(90deg);}
+  }
+  .rgArc{font-size:30px;color:var(--amber);margin:16px 0 4px;line-height:1;}
+  .rgTitle{font-family:'Oswald',sans-serif;font-size:20px;font-weight:700;letter-spacing:1px;
+    text-transform:uppercase;color:var(--text);margin-bottom:8px;}
+  .rgSub{font-size:13px;color:var(--text-dim);line-height:1.55;}
+  .rgTip{display:none;margin-top:16px;padding:11px 13px;border:1px solid var(--line);
+    border-radius:7px;background:var(--panel);font-size:12px;color:var(--text-dim);line-height:1.55;}
+  .rgTip b{color:var(--amber);}
+  body.canInstall .rgTip{display:block;}
+  .rgSkip{margin-top:18px;background:none;border:none;color:var(--text-dim);
+    font-family:'Oswald',sans-serif;font-size:12px;letter-spacing:.6px;text-transform:uppercase;
+    text-decoration:underline;cursor:pointer;padding:6px;}
+  .rgSkip:active{color:var(--amber);}
+  @media (prefers-reduced-motion: reduce){ .rgPhone{animation:none;transform:rotate(90deg);} }
 </style>
 </head>
 <body>
+
+<!-- Rotate gate: Wide is built for landscape. Blocks the board in portrait,
+     with an escape hatch for anyone who genuinely wants portrait. -->
+<div id="rotateGate">
+  <div class="rgCard">
+    <div class="rgPhone"><span class="rgIsland"></span></div>
+    <div class="rgArc">&#10227;</div>
+    <div class="rgTitle">Turn your phone this way</div>
+    <div class="rgSub">Wide view is built for landscape. Rotating clockwise keeps the camera bar on the right, clear of the shifts.</div>
+    <div class="rgTip" id="rgTip">
+      <b>Tip:</b> tap <b>Share</b> &rarr; <b>Add to Home Screen</b>, then open it from that icon for a true full screen &mdash; no address bar.
+    </div>
+    <button class="rgSkip" onclick="dismissRotateGate()">Use portrait anyway</button>
+  </div>
+</div>
 
 <!-- FLOATING TOP LAYER — always visible, survives full minimize -->
 <div id="floatLayer">
@@ -900,6 +948,7 @@ let roster = [
   {name:"Shomaker, Peggy", rank:"captain", quals:[]},
   {name:"Barahona, Herman", rank:"captain", quals:[]},
   {name:"Stacey, Scott", rank:"captain", quals:["RS"]},
+  {name:"Paulus, Dan", rank:"captain", quals:[]},
   {name:"Besozzi, Steven", rank:"captain", quals:["RS"]},
   {name:"Novelli, David", rank:"captain", quals:["RS"]},
   {name:"Hinsch, Kevin", rank:"captain", quals:[]},
@@ -1256,7 +1305,8 @@ function updateCounts(){
   });
   shifts.forEach(s => stations.forEach(st => {
     let anyone = false, medic = false;
-    st.slots.forEach(sl => { const n = assignments[`${s}|${st.id}|${sl.key}`]; if(n){ anyone = true; if(isMedic(n)) medic = true; } });
+    /* a medic in the Captain seat is acting as captain, not filling the medic role */
+    st.slots.forEach(sl => { const n = assignments[`${s}|${st.id}|${sl.key}`]; if(n){ anyone = true; if(isMedic(n) && sl.key !== 'capt') medic = true; } });
     const ttl = document.getElementById(`sttl-${s}-${st.id}`);
     if(ttl) ttl.classList.toggle('understaffed', anyone && !medic);
   }));
@@ -1510,6 +1560,7 @@ function balanceBlock(payload, targetId){
     const st0 = stations.find(x => x.id === ST0);
     if(st0){
       const covered = st0.slots.some(sl => {
+        if(sl.key === 'capt') return false;        // acting captain doesn't cover the rig
         const n = assignments[`${S0}|${ST0}|${sl.key}`];
         return n && n !== payload.name && isMedic(n);
       });
@@ -1534,11 +1585,12 @@ function rigCoverageBlock(payload, targetId){
   const sim = Object.assign({}, assignments);
   if(payload.sourceType === 'slot'){ sim[payload.slotId] = assignments[targetId] || null; }
   sim[targetId] = payload.name;
-  const rigMedics = st.slots.map(sl => `${S}|${STID}|${sl.key}`).filter(id => { const n = sim[id]; return n && isMedic(n); }).length;
+  const rigMedics = st.slots.filter(sl => sl.key !== 'capt')
+    .map(sl => `${S}|${STID}|${sl.key}`).filter(id => { const n = sim[id]; return n && isMedic(n); }).length;
   if(rigMedics < 2) return null;                    // first medic on this rig — always allowed
   let bare = 0;                                     // rigs (not floats) with no medic anywhere, across all shifts
   shifts.forEach(s => stations.forEach(x => {
-    const seats = x.slots.map(sl => `${s}|${x.id}|${sl.key}`);
+    const seats = x.slots.filter(sl => sl.key !== 'capt').map(sl => `${s}|${x.id}|${sl.key}`);
     if(!seats.some(id => { const n = sim[id]; return n && isMedic(n); })) bare++;
   }));
   const placedSet = new Set(Object.values(sim).filter(Boolean));
@@ -1683,10 +1735,22 @@ function dismissHowTo(){
   document.getElementById('howtoOverlay').classList.remove('open');
   try{ localStorage.setItem('ccfdSeenHowTo','1'); }catch(e){}
 }
-function maybeShowHowTo(){
-  let seen = false;
-  try{ seen = localStorage.getItem('ccfdSeenHowTo') === '1'; }catch(e){}
-  if(!seen) openHowTo();
+/* The how-to no longer opens by itself - the rotate gate is the only
+   first-run interruption. The ? button opens it on demand. */
+function maybeShowHowTo(){ /* intentionally does nothing */ }
+
+function dismissRotateGate(){
+  document.body.classList.add('rgDismissed');
+  try{ localStorage.setItem('ccfdSkipRotate','1'); }catch(e){}
+}
+function initRotateGate(){
+  /* Only offer the Add-to-Home-Screen tip to people not already running that way. */
+  const standalone = window.navigator.standalone === true ||
+    (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+  document.body.classList.toggle('canInstall', !standalone);
+  let skip = false;
+  try{ skip = localStorage.getItem('ccfdSkipRotate') === '1'; }catch(e){}
+  document.body.classList.toggle('rgDismissed', skip);
 }
 
 /* ================= UNDO / REDO ================= */
@@ -2096,12 +2160,16 @@ loadFromHash();
 requestAnimationFrame(applyLayout);
 updateShiftPills();
 /* SIDE BUILD: start with shift headers hidden for maximum board space */
-try{ const bm = localStorage.getItem('ccfdBoardMode'); if(bm === 'grid') setBoardMode('grid'); }catch(e){}
+/* First visit opens in Wide; after that we honour whatever they last chose. */
+try{
+  const bm = localStorage.getItem('ccfdBoardMode');
+  if(bm === 'cols') setBoardMode('cols'); else setBoardMode('grid');
+}catch(e){ setBoardMode('grid'); }
 updateViewSeg(); positionFloat();
 document.body.classList.add('headsOff');
 document.getElementById('fHead').classList.add('off');
 refreshStatus();
-maybeShowHowTo();
+initRotateGate();
 </script>
 </body>
 </html>
