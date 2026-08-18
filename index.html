@@ -446,14 +446,8 @@
      status bar actually occupies, so the whole page rides up and the first row
      ends up underneath it. max() enforces a hard floor of 56px no matter what
      the device reports, while still honouring a bigger inset if there is one. */
-  /* iOS home-screen apps added with apple-mobile-web-app-capable do NOT match
-     @media (display-mode: standalone), so that query never fired here. The
-     class below is set from JS via navigator.standalone, which iOS does report.
-     Media query kept as a fallback for Android / desktop installs. */
-  body.standalone{ padding-top:max(calc(env(safe-area-inset-top) + 8px), 56px); }
-  @media (display-mode: standalone){
-    body{ padding-top:max(calc(env(safe-area-inset-top) + 8px), 56px); }
-  }
+  /* Standalone top padding removed - my attempts here kept making it worse.
+     Back to the plain safe-area inset until we know the right number. */
 
   /* ---- Floating top layer: survives a full minimize ---- */
   #floatLayer{position:fixed;top:calc(env(safe-area-inset-top) + var(--fTop, 4px));
@@ -900,7 +894,10 @@
     <div class="howRow"><b>Full screen on your phone</b> Open the board in Safari, tap Share, then <b>Add to Home Screen</b>. Launching from that icon drops the address bar and tabs entirely — with ⤢ it's all board.</div>
 
     <p class="hint" style="margin-top:14px;">Tap <b>?</b> up top to see this again anytime.</p>
-    <p class="hint" style="font-size:11px;opacity:.6;">Build <b id="buildStamp">v14</b> &middot; <span id="modeStamp">browser</span></p>
+    <p class="hint" style="font-size:11px;opacity:.6;">Build <b id="buildStamp">v16</b> &middot; <span id="modeStamp">browser</span></p>
+    <p class="hint" style="font-size:11px;opacity:.8;background:var(--panel-2);border:1px solid var(--line);
+       border-radius:6px;padding:8px 10px;font-family:'JetBrains Mono';line-height:1.7;">
+      <span id="diagOut">diagnostics…</span></p>
     <div class="row"><button class="btn edit" onclick="dismissHowTo()">Got it</button></div>
   </div>
 </div>
@@ -1806,6 +1803,27 @@ function dismissRotateGate(){
   document.body.classList.add('rgDismissed');
   try{ localStorage.setItem('ccfdSkipRotate','1'); }catch(e){}
 }
+/* Reports the real numbers so the top-offset can be set from measurement
+   instead of guesswork. Shown at the bottom of the ? screen. */
+function writeDiagnostics(standalone){
+  const el = document.getElementById('diagOut'); if(!el) return;
+  const probe = document.createElement('div');
+  probe.style.cssText = 'position:fixed;top:0;left:0;height:env(safe-area-inset-top);width:1px;visibility:hidden;';
+  document.body.appendChild(probe);
+  const insetTop = Math.round(probe.getBoundingClientRect().height);
+  probe.remove();
+  const bodyPad = Math.round(parseFloat(getComputedStyle(document.body).paddingTop) || 0);
+  const tb = document.getElementById('topbar');
+  const tbTop = tb ? Math.round(tb.getBoundingClientRect().top) : -1;
+  const vvTop = (window.visualViewport ? Math.round(window.visualViewport.offsetTop) : -1);
+  el.innerHTML =
+    'standalone: <b>' + standalone + '</b><br>' +
+    'safe-area-top: <b>' + insetTop + 'px</b><br>' +
+    'body padding-top: <b>' + bodyPad + 'px</b><br>' +
+    'topbar top edge: <b>' + tbTop + 'px</b><br>' +
+    'innerHeight: <b>' + window.innerHeight + '</b> / screen: <b>' + window.screen.height + '</b><br>' +
+    'visualViewport offsetTop: <b>' + vvTop + '</b>';
+}
 function initRotateGate(){
   /* Only offer the Add-to-Home-Screen tip to people not already running that way. */
   const standalone = window.navigator.standalone === true ||
@@ -1814,6 +1832,7 @@ function initRotateGate(){
   document.body.classList.toggle('standalone', standalone);
   const ms = document.getElementById('modeStamp');
   if(ms) ms.textContent = standalone ? 'home screen' : 'browser';
+  writeDiagnostics(standalone);
   let skip = false;
   try{ skip = localStorage.getItem('ccfdSkipRotate') === '1'; }catch(e){}
   document.body.classList.toggle('rgDismissed', skip);
