@@ -441,10 +441,13 @@
   html{ padding:0; }
   body{ padding-top:env(safe-area-inset-top); padding-bottom:env(safe-area-inset-bottom);
     padding-left:env(safe-area-inset-left); padding-right:env(safe-area-inset-right); }
-  /* Home Screen mode: guarantee a little clearance under the status bar so the
-     first row is never flush against it, whatever the device reports. */
+  /* HOME SCREEN MODE - the real fix.
+     Installed as a web app, iOS reports a smaller top inset than the space the
+     status bar actually occupies, so the whole page rides up and the first row
+     ends up underneath it. max() enforces a hard floor of 56px no matter what
+     the device reports, while still honouring a bigger inset if there is one. */
   @media (display-mode: standalone){
-    body{ padding-top:calc(env(safe-area-inset-top) + 6px); }
+    body{ padding-top:max(calc(env(safe-area-inset-top) + 8px), 56px); }
   }
 
   /* ---- Floating top layer: survives a full minimize ---- */
@@ -735,6 +738,13 @@
     text-decoration:underline;cursor:pointer;padding:6px;}
   .rgSkip:active{color:var(--amber);}
   @media (prefers-reduced-motion: reduce){ .rgPhone{animation:none;transform:rotate(90deg);} }
+  /* WIDE: seats must size themselves, not sit at a fixed 21px.
+     The fixed height came from the Tall drift fix; in Wide it made the Truck
+     cell need ~97px while the others need ~74px, so its 4th seat was being
+     clipped by the cell's overflow:hidden. Letting them flex means every rig
+     fills its cell evenly and Truck shows all four. */
+  body.gridMode .mCell .slot{height:auto;min-height:0;flex:1 1 0;}
+  body.gridMode .mCell{overflow:visible;}
 </style>
 </head>
 <body>
