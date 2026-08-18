@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="apple-mobile-web-app-title" content="CCFD Mock Bid">
 <meta name="theme-color" content="#0e1113">
 <title>CCFD Mock Bid</title>
@@ -441,6 +441,11 @@
   html{ padding:0; }
   body{ padding-top:env(safe-area-inset-top); padding-bottom:env(safe-area-inset-bottom);
     padding-left:env(safe-area-inset-left); padding-right:env(safe-area-inset-right); }
+  /* Home Screen mode: guarantee a little clearance under the status bar so the
+     first row is never flush against it, whatever the device reports. */
+  @media (display-mode: standalone){
+    body{ padding-top:calc(env(safe-area-inset-top) + 6px); }
+  }
 
   /* ---- Floating top layer: survives a full minimize ---- */
   #floatLayer{position:fixed;top:calc(env(safe-area-inset-top) + var(--fTop, 4px));
