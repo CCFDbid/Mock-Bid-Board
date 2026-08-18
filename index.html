@@ -6,9 +6,16 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Bid Board">
+<meta name="apple-mobile-web-app-title" content="CCFD Mock Bid">
 <meta name="theme-color" content="#0e1113">
-<title>CCFD Bid Board — Side Build</title>
+<title>CCFD Mock Bid</title>
+<meta name="description" content="Run the CCFD annual station bid. Place people into seats shift by shift.">
+<!-- link preview when the URL is pasted into Messages, Slack, email -->
+<meta property="og:title" content="CCFD Mock Bid">
+<meta property="og:description" content="Run the CCFD annual station bid. Place people into seats shift by shift.">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="CCFD Mock Bid">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
 
@@ -1552,35 +1559,66 @@ function balanceState(excludeName){
   roster.forEach(r => { if(isMedic(r.name) && !placedSet.has(r.name) && r.name !== excludeName) R++; });
   return {base, R};
 }
+/* Does shift `s` still have a rig with no medic AND an open non-captain seat?
+   Used before steering someone to another shift, so we never point them
+   somewhere they cannot actually be placed. */
+function shiftHasUncoveredOpening(s, excludeName){
+  return stations.some(st => {
+    const seats = st.slots.filter(sl => sl.key !== 'capt');
+    const covered = seats.some(sl => {
+      const n = assignments[`${s}|${st.id}|${sl.key}`];
+      return n && n !== excludeName && isMedic(n);
+    });
+    if(covered) return false;
+    return seats.some(sl => {
+      const n = assignments[`${s}|${st.id}|${sl.key}`];
+      return !n || n === excludeName;
+    });
+  });
+}
+
 function balanceBlock(payload, targetId){
   if(!balanceOn || !isMedic(payload.name)) return null;
   const kind = slotMeta[targetId].kind;
   if(!['medic','flex','float'].includes(kind)) return null;
-  /* Every rig has to end the bid with a medic. If this rig still has none,
-     coverage outranks shift balance - otherwise the last uncovered rigs could
-     never be filled and the bid cannot legally finish. */
+
+  const shift = targetId.startsWith('float|') ? targetId.split('|')[1] : targetId.split('|')[0];
+  const {base, R} = balanceState(payload.name);
+  const test = s => { const b = {A:base.A, B:base.B, C:base.C}; b[s]++; return canBalance([b.A,b.B,b.C], R); };
+  const first = payload.name.split(',')[0];
+
+  /* Is the rig they are aiming at still without a medic? */
+  let uncoveredRig = false;
   if(!targetId.startsWith('float|') && !targetId.startsWith('off|')){
     const p0 = targetId.split('|'); const S0 = p0[0], ST0 = p0[1];
     const st0 = stations.find(x => x.id === ST0);
     if(st0){
-      const covered = st0.slots.some(sl => {
-        if(sl.key === 'capt') return false;        // acting captain doesn't cover the rig
+      uncoveredRig = !st0.slots.some(sl => {
+        if(sl.key === 'capt') return false;          // acting captain doesn't cover the rig
         const n = assignments[`${S0}|${ST0}|${sl.key}`];
         return n && n !== payload.name && isMedic(n);
       });
-      if(!covered) return null;
     }
   }
-  const shift = targetId.startsWith('float|') ? targetId.split('|')[1] : targetId.split('|')[0];
-  const {base, R} = balanceState(payload.name);
-  const test = s => { const b = {A:base.A, B:base.B, C:base.C}; b[s]++; return canBalance([b.A,b.B,b.C], R); };
+
+  if(uncoveredRig){
+    /* Coverage outranks balance - but only steer them away if somewhere else
+       ALSO needs coverage and would keep the shifts even. Otherwise allow it,
+       so covering every rig can never dead-end. */
+    if(test(shift)) return null;
+    const better = ['A','B','C'].filter(s =>
+      s !== shift && test(s) && shiftHasUncoveredOpening(s, payload.name));
+    if(!better.length) return null;                  // nowhere better - coverage wins
+    return `Paramedic balance: ${better.join(' or ')} shift still has a rig with no medic and needs the numbers. Put ${first} there first.`;
+  }
+
   if(test(shift)) return null;
   const allowed = ['A','B','C'].filter(test);
-  const first = payload.name.split(',')[0];
   return allowed.length
     ? `Paramedic balance: ${shift} shift already has enough medics. ${first} needs to bid ${allowed.join(' or ')} shift to keep the shifts even.`
     : `Paramedic balance: adding another medic here would unbalance the shifts. Free up a seat elsewhere first.`;
 }
+
 function rigCoverageBlock(payload, targetId){
   if(!isMedic(payload.name)) return null;
   if(targetId.startsWith('float|') || targetId.startsWith('off|')) return null;
