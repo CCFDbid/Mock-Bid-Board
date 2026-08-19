@@ -442,8 +442,13 @@
      were originally. The stacking is what cleared the status bar. Left/right
      are applied ONCE (body only) - doubling those is what ate ~200px of width
      in landscape and made the top bar overlap itself. */
-  html{ padding-top:env(safe-area-inset-top); padding-bottom:env(safe-area-inset-bottom); }
-  body{ padding-top:env(safe-area-inset-top); padding-bottom:env(safe-area-inset-bottom);
+  /* Applied ONCE, on body only. Doubling it (html + body) cleared the status
+     bar but wasted ~110pt at the top and ~68pt at the bottom. A single inset
+     plus a small margin does the same job for far less screen.
+     If the top ever clips again, the number to raise is the +10px. */
+  html{ padding:0; }
+  body{ padding-top:calc(env(safe-area-inset-top) + 10px);
+    padding-bottom:env(safe-area-inset-bottom);
     padding-left:env(safe-area-inset-left); padding-right:env(safe-area-inset-right); }
   /* HOME SCREEN MODE - the real fix.
      Installed as a web app, iOS reports a smaller top inset than the space the
@@ -900,7 +905,7 @@
     <div class="howRow"><b>Full screen on your phone</b> Open the board in Safari, tap Share, then <b>Add to Home Screen</b>. Launching from that icon drops the address bar and tabs entirely — with ⤢ it's all board.</div>
 
     <p class="hint" style="margin-top:14px;">Tap <b>?</b> up top to see this again anytime.</p>
-    <p class="hint" style="font-size:11px;opacity:.6;">Build <b id="buildStamp">v19</b> &middot; <span id="modeStamp">browser</span></p>
+    <p class="hint" style="font-size:11px;opacity:.6;">Build <b id="buildStamp">v20</b> &middot; <span id="modeStamp">browser</span></p>
     <p class="hint" style="font-size:11px;opacity:.8;background:var(--panel-2);border:1px solid var(--line);
        border-radius:6px;padding:8px 10px;font-family:'JetBrains Mono';line-height:1.7;">
       <span id="diagOut">diagnostics…</span></p>
