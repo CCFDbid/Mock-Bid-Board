@@ -33,7 +33,7 @@
   body.dragging-active{user-select:none;cursor:grabbing;}
 
   /* ---- TOP BAR ---- */
-  #topbar{position:relative;background:var(--panel);border-bottom:3px solid var(--amber);flex-shrink:0;z-index:60;
+  #topbar{background:var(--panel);border-bottom:3px solid var(--amber);flex-shrink:0;z-index:60;
     display:flex;flex-wrap:wrap;align-items:center;column-gap:12px;row-gap:6px;padding:9px 18px;}
   .brand{order:1;} .brand h1{margin:0;font-size:19px;letter-spacing:1.5px;font-weight:700;white-space:nowrap;}
   .brand h1 span{color:var(--amber);}
@@ -115,7 +115,7 @@
   .menuDrop .mDanger{color:var(--red);} .menuDrop .mDanger:hover{background:rgba(200,54,44,.15);}
 
   /* ---- BOTTOM COMMAND BAR: Undo/Redo + Roster + Shift (all views) ---- */
-  #cmdBar{position:relative;z-index:60;display:flex;align-items:center;gap:10px;flex-shrink:0;padding:7px 16px;
+  #cmdBar{display:flex;align-items:center;gap:10px;flex-shrink:0;padding:7px 16px;
     background:var(--panel);border-top:3px solid var(--amber);z-index:60;}
   .cmdUndo{display:flex;gap:5px;flex-shrink:0;}
   .cmdUndo button{background:var(--panel-2);border:1px solid var(--line);color:var(--text-dim);
@@ -463,7 +463,7 @@
   /* ---- Floating top layer: survives a full minimize ---- */
   #floatLayer{position:fixed;top:calc(env(safe-area-inset-top) + var(--fTop, 4px));
     right:calc(env(safe-area-inset-right) + 6px);z-index:500;
-    display:flex;align-items:center;gap:5px;pointer-events:none;}
+    display:flex;align-items:center;gap:5px;pointer-events:none;transition:top .15s;}
   #floatLayer > *{pointer-events:auto;}
   #floatName{display:none;align-items:center;gap:5px;background:#0e1113;
     border:1px solid rgba(242,167,27,.55);border-radius:20px;padding:4px 11px;
@@ -913,7 +913,7 @@
     <div class="howRow"><b>Full screen on your phone</b> Open the board in Safari, tap Share, then <b>Add to Home Screen</b>. Launching from that icon drops the address bar and tabs entirely — with ⤢ it's all board.</div>
 
     <p class="hint" style="margin-top:14px;">Tap <b>?</b> up top to see this again anytime.</p>
-    <p class="hint" style="font-size:11px;opacity:.6;">Build <b id="buildStamp">v27</b> &middot; <span id="modeStamp">browser</span></p>
+    <p class="hint" style="font-size:11px;opacity:.6;">Build <b id="buildStamp">v28</b> &middot; <span id="modeStamp">browser</span></p>
     <p class="hint" style="font-size:11px;opacity:.8;background:var(--panel-2);border:1px solid var(--line);
        border-radius:6px;padding:8px 10px;font-family:'JetBrains Mono';line-height:1.7;">
       <span id="diagOut">diagnostics…</span></p>
@@ -1846,9 +1846,7 @@ function writeDiagnostics(standalone){
     'iOS already reserved: <b>' + Math.max(0, (window.innerHeight >= window.innerWidth
         ? Math.max(window.screen.width, window.screen.height)
         : Math.min(window.screen.width, window.screen.height)) - window.innerHeight) + 'px</b><br>' +
-    'so we add top: <b>' + topInsetNeeded() + 'px</b><br>' +
-    'innerWidth: <b>' + window.innerWidth + '</b> / screen w: <b>' +
-      Math.max(window.screen.width, window.screen.height) + '</b>';
+    'so we add: <b>' + topInsetNeeded() + 'px</b>';
 }
 /* iOS reserves the status bar for us (apple-mobile-web-app-status-bar-style
    = black), so an installed app needs NO extra top padding in either
@@ -1883,31 +1881,14 @@ function topInsetNeeded(){
   const need      = portrait ? statusBarPt() : 0;
   return Math.max(0, need - reserved);
 }
-/* Side padding was tried in v24 to clear the Dynamic Island and it made the
-   landscape controls unusable, so it is gone. Left/right stay on the CSS
-   env() values exactly as they were in v23, when landscape was working. */
-/* Nudge a repaint - iOS can hold a stale rasterised copy of a bar after a
-   layout change, making its buttons look unresponsive. */
-function repaintBars(){
-  ['topbar','cmdBar'].forEach(id => {
-    const el = document.getElementById(id); if(!el) return;
-    el.style.opacity = '0.999';
-    requestAnimationFrame(() => { el.style.opacity = ''; });
-  });
-}
 function applyTopInset(){
   const standalone = window.navigator.standalone === true ||
     (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
   const b = document.body.style;
-  if(!standalone){
-    b.paddingTop = ''; b.paddingBottom = ''; b.paddingLeft = ''; b.paddingRight = '';
-    return;
-  }
+  if(!standalone){ b.paddingTop = ''; b.paddingBottom = ''; return; }
   const portrait = window.innerHeight >= window.innerWidth;
   b.paddingTop    = topInsetNeeded() + 'px';
   b.paddingBottom = portrait ? '21px' : '15px';   // home indicator only
-  b.paddingLeft   = '';                            // leave these to CSS
-  b.paddingRight  = '';
 }
 function initRotateGate(){
   /* Only offer the Add-to-Home-Screen tip to people not already running that way. */
@@ -2229,7 +2210,7 @@ function setBoardMode(m){
   document.body.classList.remove('expanded');
   document.querySelectorAll('.shiftCol').forEach(c => c.classList.remove('active-shift'));
   expandedShift = null;
-  buildBoard(); refreshAllSlots(); updateCounts(); updateViewSeg(); repaintBars();
+  buildBoard(); refreshAllSlots(); updateCounts(); updateViewSeg();
   applyZoom(1);
   requestAnimationFrame(() => { positionFloat(); applyLayout(); });
 }
@@ -2299,7 +2280,7 @@ function shiftRosterBottom(){
 }
 window.addEventListener('resize', () => requestAnimationFrame(applyLayout));
 window.addEventListener('orientationchange', () => {
-  [60, 250, 600].forEach(d => setTimeout(() => { applyTopInset(); applyLayout(); sizeWideScreen(); repaintBars(); }, d));
+  [60, 250, 600].forEach(d => setTimeout(() => { applyTopInset(); applyLayout(); sizeWideScreen(); }, d));
 });
 window.addEventListener('resize', () => { applyTopInset(); });
 window.addEventListener('orientationchange', () => setTimeout(applyLayout, 250));
@@ -2344,8 +2325,6 @@ document.body.classList.add('headsOff');
 document.getElementById('fHead').classList.add('off');
 refreshStatus();
 initRotateGate();
-
-
 </script>
 </body>
 </html>
