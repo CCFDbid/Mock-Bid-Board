@@ -913,7 +913,7 @@
     <div class="howRow"><b>Full screen on your phone</b> Open the board in Safari, tap Share, then <b>Add to Home Screen</b>. Launching from that icon drops the address bar and tabs entirely — with ⤢ it's all board.</div>
 
     <p class="hint" style="margin-top:14px;">Tap <b>?</b> up top to see this again anytime.</p>
-    <p class="hint" style="font-size:11px;opacity:.6;">Build <b id="buildStamp">v22</b> &middot; <span id="modeStamp">browser</span></p>
+    <p class="hint" style="font-size:11px;opacity:.6;">Build <b id="buildStamp">v23</b> &middot; <span id="modeStamp">browser</span></p>
     <p class="hint" style="font-size:11px;opacity:.8;background:var(--panel-2);border:1px solid var(--line);
        border-radius:6px;padding:8px 10px;font-family:'JetBrains Mono';line-height:1.7;">
       <span id="diagOut">diagnostics…</span></p>
@@ -1842,7 +1842,11 @@ function writeDiagnostics(standalone){
     'topbar top edge: <b>' + tbTop + 'px</b><br>' +
     'innerHeight: <b>' + window.innerHeight + '</b> / screen: <b>' + window.screen.height + '</b><br>' +
     'visualViewport offsetTop: <b>' + vvTop + '</b><br>' +
-    'status bar used: <b>' + statusBarPt() + 'px</b>';
+    'status bar height: <b>' + statusBarPt() + 'px</b><br>' +
+    'iOS already reserved: <b>' + Math.max(0, (window.innerHeight >= window.innerWidth
+        ? Math.max(window.screen.width, window.screen.height)
+        : Math.min(window.screen.width, window.screen.height)) - window.innerHeight) + 'px</b><br>' +
+    'so we add: <b>' + topInsetNeeded() + 'px</b>';
 }
 /* iOS reserves the status bar for us (apple-mobile-web-app-status-bar-style
    = black), so an installed app needs NO extra top padding in either
@@ -1863,13 +1867,27 @@ function statusBarPt(){
   if(longEdge >= 812) return 47;   // X / 11 Pro / mini
   return 20;                       // SE and older
 }
+/* Work out how much room iOS has ALREADY reserved, and only make up the
+   difference. Diagnostics showed this flipping between launches:
+     innerHeight 956 of 956  -> iOS reserved nothing, we must add 62
+     innerHeight 894 of 956  -> iOS reserved the 62 itself, we must add 0
+   Which state you land in depends on when the Home Screen icon was created,
+   so it cannot be assumed - it has to be measured every time. */
+function topInsetNeeded(){
+  const portrait  = window.innerHeight >= window.innerWidth;
+  const screenH   = portrait ? Math.max(window.screen.width, window.screen.height)
+                             : Math.min(window.screen.width, window.screen.height);
+  const reserved  = Math.max(0, screenH - window.innerHeight);
+  const need      = portrait ? statusBarPt() : 0;
+  return Math.max(0, need - reserved);
+}
 function applyTopInset(){
   const standalone = window.navigator.standalone === true ||
     (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
   const b = document.body.style;
   if(!standalone){ b.paddingTop = ''; b.paddingBottom = ''; return; }
   const portrait = window.innerHeight >= window.innerWidth;
-  b.paddingTop    = portrait ? statusBarPt() + 'px' : '0px';
+  b.paddingTop    = topInsetNeeded() + 'px';
   b.paddingBottom = portrait ? '21px' : '15px';   // home indicator only
 }
 function initRotateGate(){
