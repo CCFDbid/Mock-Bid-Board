@@ -774,38 +774,62 @@
   .zoomGroup button{ min-width:40px; }
   body.phone.landscape #topbar button,
   body.phone.landscape #cmdBar button{ min-height:40px; }
+  /* Hit pads removed. Pseudo-elements on <button> are not reliably
+     hit-tested in Safari, so they never helped - and reaching 46px above each
+     control risked swallowing taps meant for the row above. Touch correction
+     is handled in JS by nearest-control instead. */
   /* ============================================================
-     TOUCH OFFSET COMPENSATION
-     Taps land BELOW where controls are drawn, so the visible button sits
-     above its own hit box. Rather than keep hunting the cause, each control
-     gets an invisible hit pad that reaches UPWARD past its painted edge, so
-     tapping the button where you see it lands inside the pad.
-     --hitUp is the amount; raise or lower it in one place.
+     SMALLER IPHONES
+     The layout is tuned for a Pro Max (440pt wide portrait). These rules only
+     engage BELOW that width, so the big-phone layout is untouched - they scale
+     the chrome down proportionally so nothing wraps, overlaps, or crowds.
+     Touch targets stay at Apple's 44px minimum throughout.
      ============================================================ */
-  :root{ --hitUp:46px; --hitDown:4px; --hitSide:6px; }
 
-  #topbar button, #cmdBar button, .corner button, .viewSeg button,
-  .zoomGroup button, .toolGroup button, .menuWrap > button,
-  #rosterBtn, #shiftBtn, #fHead, #fBars, #helpBtn, #rosterCollapse,
-  .filterBtn, #statusCancel{ position:relative; }
-
-  #topbar button::after, #cmdBar button::after, .corner button::after,
-  .viewSeg button::after, .zoomGroup button::after, .toolGroup button::after,
-  .menuWrap > button::after, #rosterBtn::after, #shiftBtn::after,
-  #fHead::after, #fBars::after, #helpBtn::after, #rosterCollapse::after,
-  .filterBtn::after, #statusCancel::after{
-    content:''; position:absolute;
-    left:calc(-1 * var(--hitSide)); right:calc(-1 * var(--hitSide));
-    top:calc(-1 * var(--hitUp)); bottom:calc(-1 * var(--hitDown));
-    z-index:5;
+  /* --- standard iPhones: 390-412pt (13/14/15/16, non-Pro-Max) --- */
+  @media (max-width: 412px){
+    .brand h1{ font-size:16px; letter-spacing:1px; }
+    #topbar{ column-gap:8px; padding:7px 12px; }
+    .btn{ font-size:11px; padding:7px 10px; }
+    .viewSeg button{ font-size:10px; padding-left:12px; padding-right:12px; }
+    .zoomGroup .zlabel{ font-size:10px; min-width:34px; }
+    #rosterBtn{ font-size:12px; padding-left:12px; padding-right:12px; }
+    #shiftBtn{ font-size:10px; padding-left:9px; padding-right:9px; }
+    .clkChip #statusName{ font-size:13px; }
+    #cmdBar{ gap:7px; padding-left:11px; padding-right:11px; }
   }
-  /* the segmented control sits inside a rounded shell - keep its pad clipped
-     to its own half so Tall and Wide cannot steal each other's taps */
-  .viewSeg{ position:relative; overflow:visible; }
-  .viewSeg button::after{ left:0; right:0; }
-  /* No chrome container may clip a hit pad. */
-  #topbar, #cmdBar, .btnRow, .corner, .toolGroup, .zoomGroup,
-  .cmdUndo, .cmdActions, .menuWrap, #filterRow{ overflow:visible; }
+
+  /* --- SE and mini: 375pt --- */
+  @media (max-width: 380px){
+    .brand h1{ font-size:14px; letter-spacing:.6px; }
+    #topbar{ column-gap:6px; padding:6px 9px; }
+    .btn{ font-size:10px; padding:7px 8px; }
+    .viewSeg button{ font-size:9px; padding-left:9px; padding-right:9px; }
+    .zoomGroup .zlabel{ font-size:9px; min-width:30px; }
+    #rosterBtn{ font-size:11px; padding-left:10px; padding-right:10px; }
+    #shiftBtn{ font-size:9px; padding-left:7px; padding-right:7px; }
+    .clkChip{ padding-left:8px; padding-right:8px; }
+    .clkChip #statusName{ font-size:12px; }
+    #cmdBar{ gap:6px; padding-left:8px; padding-right:8px; }
+  }
+
+  /* --- landscape on a smaller phone: short viewport, keep the board fed --- */
+  @media (orientation: landscape) and (max-height: 412px){
+    #topbar{ padding-top:4px; padding-bottom:4px; column-gap:7px; }
+    .brand h1{ font-size:13px; }
+    .btn{ font-size:10px; padding:6px 9px; }
+    #topbar button, #cmdBar button, .viewSeg button, .corner button,
+    .zoomGroup button, .toolGroup button, #rosterBtn, #shiftBtn,
+    #fHead, #fBars, #helpBtn{ min-height:38px; }
+  }
+  @media (orientation: landscape) and (max-height: 380px){
+    #topbar{ padding-top:3px; padding-bottom:3px; column-gap:5px; }
+    .brand h1{ font-size:12px; }
+    .btn{ font-size:9px; padding:6px 7px; }
+    #topbar button, #cmdBar button, .viewSeg button, .corner button,
+    .zoomGroup button, .toolGroup button, #rosterBtn, #shiftBtn,
+    #fHead, #fBars, #helpBtn{ min-height:36px; }
+  }
 </style>
 </head>
 <body>
@@ -956,7 +980,7 @@
     <div class="howRow"><b>Full screen on your phone</b> Open the board in Safari, tap Share, then <b>Add to Home Screen</b>. Launching from that icon drops the address bar and tabs entirely — with ⤢ it's all board.</div>
 
     <p class="hint" style="margin-top:14px;">Tap <b>?</b> up top to see this again anytime.</p>
-    <p class="hint" style="font-size:11px;opacity:.6;">Build <b id="buildStamp">v32</b> &middot; <span id="modeStamp">browser</span></p>
+    <p class="hint" style="font-size:11px;opacity:.6;">Build <b id="buildStamp">v34</b> &middot; <span id="modeStamp">browser</span></p>
     <p class="hint" style="font-size:11px;opacity:.8;background:var(--panel-2);border:1px solid var(--line);
        border-radius:6px;padding:8px 10px;font-family:'JetBrains Mono';line-height:1.7;">
       <span id="diagOut">diagnostics…</span></p>
@@ -1925,14 +1949,11 @@ function topInsetNeeded(){
   return Math.max(0, need - reserved);
 }
 function applyTopInset(){
-  const standalone = window.navigator.standalone === true ||
-    (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
-  const b = document.body.style;
-  if(!standalone){ b.paddingTop = ''; b.paddingBottom = ''; return; }
-  const portrait = window.innerHeight >= window.innerWidth;
-  b.paddingTop    = '';   // iOS confines us to the safe area now
-  b.paddingBottom = '';
+  /* No longer needed: with viewport-fit=cover removed, iOS keeps the page
+     inside the safe area on its own. Kept as a no-op so the existing call
+     sites stay valid. */
 }
+
 function initRotateGate(){
   /* Only offer the Add-to-Home-Screen tip to people not already running that way. */
   const standalone = window.navigator.standalone === true ||
@@ -2369,31 +2390,37 @@ document.getElementById('fHead').classList.add('off');
 refreshStatus();
 initRotateGate();
 /* ============================================================
-   TOUCH OFFSET RE-ROUTER
-   On this device the hit boxes sit BELOW where controls are painted, so a tap
-   on the visible top half of a button misses it. CSS pads did not help because
-   Safari does not reliably hit-test pseudo-elements on <button>.
-   This catches taps that land on nothing interactive, looks a little further
-   DOWN for a real control, and forwards the tap to it.
-   TAP_OFFSET is the single number to tune.
+   TOUCH CORRECTION
+   Taps land slightly off from where controls are painted. Rather than shove
+   the tap a fixed distance in one direction - which fires whatever happens to
+   sit there, e.g. Roster when you meant Tall - this finds the control the tap
+   was NEAREST to and uses that. Distance is measured to the edge of each
+   control's own box, so a tap just outside a button goes to that button and
+   never jumps to a different row.
    ============================================================ */
-var TAP_OFFSET = 26;
-(function tapReroute(){
+var TAP_RADIUS = 30;          // how far a tap may miss and still count
+(function touchCorrection(){
   const SEL = 'button,[onclick]';
-  function reroute(e){
-    if(!e.target || !e.target.closest) return;
-    if(e.target.closest(SEL)) return;              // already on a control
-    for(const dy of [TAP_OFFSET, TAP_OFFSET * 1.6]){
-      const el = document.elementFromPoint(e.clientX, e.clientY + dy);
-      const btn = el && el.closest ? el.closest(SEL) : null;
-      if(btn && !btn.disabled){
-        e.preventDefault(); e.stopPropagation();
-        btn.click();
-        return;
-      }
-    }
+  function nearest(x, y){
+    let best = null, bestD = Infinity;
+    document.querySelectorAll(SEL).forEach(el => {
+      if(el.disabled) return;
+      if(el.offsetParent === null && getComputedStyle(el).position !== 'fixed') return;
+      const r = el.getBoundingClientRect();
+      if(!r.width || !r.height) return;
+      const dx = x < r.left ? r.left - x : (x > r.right ? x - r.right : 0);
+      const dy = y < r.top  ? r.top  - y : (y > r.bottom ? y - r.bottom : 0);
+      const d = Math.sqrt(dx*dx + dy*dy);
+      if(d < bestD){ bestD = d; best = el; }
+    });
+    return bestD <= TAP_RADIUS ? best : null;
   }
-  document.addEventListener('click', reroute, true);
+  document.addEventListener('click', e => {
+    if(!e.target || !e.target.closest) return;
+    if(e.target.closest(SEL)) return;            // tap already found a control
+    const btn = nearest(e.clientX, e.clientY);
+    if(btn){ e.preventDefault(); e.stopPropagation(); btn.click(); }
+  }, true);
 })();
 
 </script>
