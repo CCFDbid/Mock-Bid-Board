@@ -830,6 +830,59 @@
     .zoomGroup button, .toolGroup button, #rosterBtn, #shiftBtn,
     #fHead, #fBars, #helpBtn{ min-height:36px; }
   }
+  /* ============================================================
+     SMALLER PHONES IN LANDSCAPE
+     Your Pro Max is 956pt wide in landscape, so NONE of these match it -
+     every rule below is gated on both `orientation: landscape` AND a width
+     under 900pt. Portrait on a Pro Max is 440pt but the orientation gate
+     excludes it too. The big-phone layout is untouched.
+
+       844pt (12/13/14/15/16)  -> tier 1: scale only, all wording kept
+       740pt                   -> tier 2: tighter, Roster label shortens
+       667pt (SE landscape)    -> tier 3: title drops, icons only
+     ============================================================ */
+
+  /* --- tier 1: ~844pt. Needs about 12% back; scaling alone does it. --- */
+  @media (orientation: landscape) and (max-width: 900px){
+    #topbar{ column-gap:7px; padding:5px 10px; }
+    .brand h1{ font-size:14px; letter-spacing:.8px; }
+    .clkChip{ padding:3px 8px; }
+    .clkChip #statusLabel{ font-size:7px; }
+    .clkChip #statusName{ font-size:11px; }
+    .btn{ font-size:10px; padding:6px 8px; }
+    .viewSeg button{ font-size:9px; padding:5px 10px; }
+    .zoomGroup button{ font-size:14px; padding:4px 7px; }
+    .zoomGroup .zlabel{ font-size:9px; min-width:30px; }
+    #rosterBtn{ font-size:10px; padding:5px 9px; }
+    #shiftBtn{ font-size:9px; padding:5px 8px; }
+    .cmdUndo button{ font-size:12px; padding:5px 8px; }
+    #topbar button, #cmdBar button, .viewSeg button, .corner button,
+    .zoomGroup button, .toolGroup button, #rosterBtn, #shiftBtn,
+    #fHead, #fBars, #helpBtn{ min-height:36px; }
+  }
+
+  /* --- tier 2: ~740pt. Trim further; JS shortens "Show Roster" to "Roster". --- */
+  @media (orientation: landscape) and (max-width: 800px){
+    #topbar{ column-gap:5px; padding:4px 8px; }
+    .brand h1{ font-size:12px; letter-spacing:.4px; }
+    .btn{ font-size:9px; padding:5px 7px; }
+    .viewSeg button{ font-size:8.5px; padding:5px 8px; }
+    #rosterBtn{ font-size:9px; padding:5px 8px; }
+    #shiftBtn{ font-size:8.5px; padding:5px 6px; }
+    .zoomGroup .zlabel{ min-width:26px; }
+    #shiftPills{ display:none; }
+  }
+
+  /* --- tier 3: SE landscape ~667pt. Title goes, labels become icons. --- */
+  @media (orientation: landscape) and (max-width: 700px){
+    .brand{ display:none; }
+    #topbar{ column-gap:4px; padding:3px 6px; }
+    .btn{ font-size:8.5px; padding:5px 6px; }
+    .corner .bt{ display:none; }
+    #topbar button, #cmdBar button, .viewSeg button, .corner button,
+    .zoomGroup button, .toolGroup button, #rosterBtn, #shiftBtn,
+    #fHead, #fBars, #helpBtn{ min-height:34px; }
+  }
 </style>
 </head>
 <body>
@@ -980,7 +1033,7 @@
     <div class="howRow"><b>Full screen on your phone</b> Open the board in Safari, tap Share, then <b>Add to Home Screen</b>. Launching from that icon drops the address bar and tabs entirely — with ⤢ it's all board.</div>
 
     <p class="hint" style="margin-top:14px;">Tap <b>?</b> up top to see this again anytime.</p>
-    <p class="hint" style="font-size:11px;opacity:.6;">Build <b id="buildStamp">v34</b> &middot; <span id="modeStamp">browser</span></p>
+    <p class="hint" style="font-size:11px;opacity:.6;">Build <b id="buildStamp">v36</b> &middot; <span id="modeStamp">browser</span></p>
     <p class="hint" style="font-size:11px;opacity:.8;background:var(--panel-2);border:1px solid var(--line);
        border-radius:6px;padding:8px 10px;font-family:'JetBrains Mono';line-height:1.7;">
       <span id="diagOut">diagnostics…</span></p>
@@ -1055,7 +1108,6 @@ let roster = [
   {name:"Murphy, Pat", rank:"bc", quals:["RS"]},
   {name:"Vella, Billy", rank:"bc", quals:[]},
   {name:"Perry, Joe", rank:"bc", quals:[]},
-  {name:"Bunnell, Joseph", rank:"captain", quals:["RS"]},
   {name:"Spiteri, Anthony", rank:"captain", quals:[]},
   {name:"Klarich, Ryan", rank:"captain", quals:["RS"]},
   {name:"Boyle, Daniel", rank:"captain", quals:[]},
@@ -1063,7 +1115,6 @@ let roster = [
   {name:"Shomaker, Peggy", rank:"captain", quals:[]},
   {name:"Barahona, Herman", rank:"captain", quals:[]},
   {name:"Stacey, Scott", rank:"captain", quals:["RS"]},
-  {name:"Paulus, Dan", rank:"captain", quals:[]},
   {name:"Besozzi, Steven", rank:"captain", quals:["RS"]},
   {name:"Novelli, David", rank:"captain", quals:["RS"]},
   {name:"Hinsch, Kevin", rank:"captain", quals:[]},
@@ -1079,11 +1130,12 @@ let roster = [
   {name:"Mason, Matthew", rank:"captain", quals:[]},
   {name:"Caceres, Eric", rank:"captain", quals:["RS"]},
   {name:"Ryan, Vincent", rank:"captain", quals:[]},
+  {name:"Bader, Travis", rank:"captain", quals:["PM","RS"]},
+  {name:"Sousa, Scott", rank:"captain", quals:["RS"]},
   {name:"McNichol Jr, Robert", rank:"ff", quals:["PM"]},
   {name:"Murray, Joseph", rank:"ff", quals:["RS"]},
   {name:"Cerecedes, Daniel", rank:"ff", quals:["PM","RS","AC"]},
   {name:"Hutchinson, Jonathan", rank:"ff", quals:[]},
-  {name:"Bader, Travis", rank:"ff", quals:["PM","RS","AC"]},
   {name:"Nuñez, Fernando", rank:"ff", quals:["PM","AC"]},
   {name:"Mallick, Ryan", rank:"ff", quals:["PM","AC"]},
   {name:"Pries, Brian", rank:"ff", quals:["PM","RS"]},
@@ -1096,7 +1148,6 @@ let roster = [
   {name:"Kelly, Colin", rank:"ff", quals:["PM","AC"]},
   {name:"McWhirter, Michael", rank:"ff", quals:["PM"]},
   {name:"Maccarra, John", rank:"ff", quals:["PM"]},
-  {name:"Sousa, Scott", rank:"ff", quals:["RS","AC"]},
   {name:"Eversole, Trevor", rank:"ff", quals:["PM"]},
   {name:"MacIntosh, Eric", rank:"ff", quals:["PM"]},
   {name:"Conroy, Tyler", rank:"ff", quals:["PM"]},
@@ -2094,11 +2145,29 @@ function fitAll(){
   applyZoom(Math.min(aw / w, ah / h)); fitActive = 'all';
 }
 function reFit(){ if(fitActive === 'all') fitAll(); else if(fitActive === 'width') fitBoard(); }
+/* The Roster button shortens itself when there is not room for the full
+   wording. Only ever engages on narrow screens. */
+function rosterLabelText(open){
+  const tight = window.innerWidth < 820;
+  if(open)  return tight ? '\u2715 Roster' : '\u2715 Hide Roster';
+  return tight ? '\u2630 Roster' : '\u2630 Show Roster';
+}
+function setRosterLabel(open){
+  const rb = document.getElementById('rosterBtn');
+  if(rb) rb.textContent = rosterLabelText(open);
+}
+function refreshRosterLabel(){
+  const pw = document.getElementById('poolWrap'); if(!pw) return;
+  const open = document.body.classList.contains('phone')
+    ? pw.classList.contains('open')
+    : !pw.classList.contains('collapsed');
+  setRosterLabel(open);
+}
 function toggleRoster(){
   if(document.body.classList.contains('phone')){ toggleDrawer(); return; }
   const pw = document.getElementById('poolWrap');
   pw.classList.toggle('collapsed');
-  document.getElementById('rosterBtn').textContent = pw.classList.contains('collapsed') ? '☰ Show Roster' : '✕ Hide Roster';
+  setRosterLabel(!pw.classList.contains('collapsed'));
   requestAnimationFrame(fitBoard);
 }
 let phoneManual = null, rosterSide = 'left', rosterCol = 0, expandedShift = null;
@@ -2222,6 +2291,7 @@ function applyLayout(){
   document.body.classList.toggle('phone', phone);
   document.body.classList.toggle('landscape', land);
   arrangeChrome(phone, land);
+  refreshRosterLabel();
   if(land) document.body.classList.remove('chrome-min');
   updateViewSeg();
   const pw = document.getElementById('poolWrap');
@@ -2229,7 +2299,7 @@ function applyLayout(){
   if(phone){
     pw.classList.remove('collapsed');
     const rb = document.getElementById('rosterBtn');
-    if(rb) rb.textContent = pw.classList.contains('open') ? '✕ Hide Roster' : '☰ Show Roster';
+    if(rb) setRosterLabel(pw.classList.contains('open'));
     updateShiftPills();
     if(land){ requestAnimationFrame(fitBoard); }   /* width-fit keeps seats readable */
     else if(fitActive){ requestAnimationFrame(reFit); }
@@ -2240,7 +2310,7 @@ function applyLayout(){
     expandedShift = null;
     document.querySelectorAll('.shiftCol').forEach(c => c.classList.remove('active-shift'));
     const rb = document.getElementById('rosterBtn');
-    if(rb) rb.textContent = pw.classList.contains('collapsed') ? '☰ Show Roster' : '✕ Hide Roster';
+    if(rb) setRosterLabel(!pw.classList.contains('collapsed'));
     fitBoard();
   }
   refreshStatus();
@@ -2328,14 +2398,14 @@ function toggleDrawer(){
   const pw = document.getElementById('poolWrap');
   pw.classList.toggle('open');
   const open = pw.classList.contains('open');
-  document.getElementById('rosterBtn').textContent = open ? '✕ Hide Roster' : '☰ Show Roster';
+  setRosterLabel(open);
   updateShiftPills();
 }
 function shiftRosterBottom(){
   const pw = document.getElementById('poolWrap');
   if(!pw.classList.contains('open')){
     pw.classList.add('open');
-    document.getElementById('rosterBtn').textContent = '✕ Hide Roster';
+    setRosterLabel(true);
   } else {
     rosterCol = (rosterCol + 1) % 3;
     saveRosterPrefs(); applySide();
