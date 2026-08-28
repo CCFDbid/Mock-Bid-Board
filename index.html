@@ -787,11 +787,12 @@
      ============================================================ */
 
   /* --- standard iPhones: 390-412pt (13/14/15/16, non-Pro-Max) --- */
-  @media (max-width: 412px){
-    /* Also drop the "ON THE CLOCK" label here - the name still shows. This
+  @media (max-width: 435px){
+    /* 435, not 412: the 11 / XR / XS Max / 8 Plus are 414pt and were missing
+       this by two pixels. 435 < 440 so a Pro Max still never matches.
+       Also drop the "ON THE CLOCK" label here - the name still shows. This
        tier is portrait-only in practice (a landscape phone is far wider than
        412px) and 412 < 440, so a Pro Max never matches it. */
-    .clkChip #statusLabel{ display:none !important; }
     .brand h1{ font-size:16px; letter-spacing:1px; }
     #topbar{ column-gap:8px; padding:7px 12px; }
     .btn{ font-size:11px; padding:7px 10px; }
@@ -839,7 +840,6 @@
        margin, which wraps. Dropping the two longest strings frees ~110px:
        the "ON THE CLOCK" label (the name still shows) and, via JS, the
        Roster button's wording. */
-    .clkChip #statusLabel{ display:none !important; }
     #topbar{ column-gap:7px; padding:5px 10px; }
     .brand h1{ font-size:14px; letter-spacing:.8px; }
     .clkChip{ padding:3px 8px; }
@@ -879,6 +879,22 @@
     .zoomGroup button, .toolGroup button, #rosterBtn, #shiftBtn,
     #fHead, #fBars, #helpBtn{ min-height:34px; }
   }
+  /* ---- applied only when the bar has genuinely wrapped ---- */
+  body.compact1 .clkChip #statusLabel{ display:none !important; }
+  body.compact1 #shiftPills{ display:none; }
+  body.compact1 #topbar{ column-gap:6px; }
+  body.compact1 .brand h1{ font-size:13px; letter-spacing:.5px; }
+  body.compact1 .btn{ font-size:9.5px; padding:6px 8px; }
+  body.compact1 .viewSeg button{ font-size:9px; padding:5px 9px; }
+  body.compact1 #rosterBtn{ font-size:9.5px; padding:5px 9px; }
+  body.compact1 #shiftBtn{ font-size:9px; padding:5px 7px; }
+  body.compact1 .clkChip #statusName{ font-size:11px; }
+
+  body.compact2 .brand{ display:none; }
+  body.compact2 .corner .bt{ display:none; }
+  body.compact2 #topbar{ column-gap:4px; padding-left:7px; padding-right:7px; }
+  body.compact2 .btn{ font-size:9px; padding:5px 6px; }
+  body.compact2 .viewSeg button{ font-size:8.5px; padding:5px 7px; }
 </style>
 </head>
 <body>
@@ -1029,7 +1045,7 @@
     <div class="howRow"><b>Full screen on your phone</b> Open the board in Safari, tap Share, then <b>Add to Home Screen</b>. Launching from that icon drops the address bar and tabs entirely — with ⤢ it's all board.</div>
 
     <p class="hint" style="margin-top:14px;">Tap <b>?</b> up top to see this again anytime.</p>
-    <p class="hint" style="font-size:11px;opacity:.6;">Build <b id="buildStamp">v38</b> &middot; <span id="modeStamp">browser</span></p>
+    <p class="hint" style="font-size:11px;opacity:.6;">Build <b id="buildStamp">v41</b> &middot; <span id="modeStamp">browser</span></p>
     <p class="hint" style="font-size:11px;opacity:.8;background:var(--panel-2);border:1px solid var(--line);
        border-radius:6px;padding:8px 10px;font-family:'JetBrains Mono';line-height:1.7;">
       <span id="diagOut">diagnostics…</span></p>
@@ -1995,6 +2011,37 @@ function topInsetNeeded(){
   const need      = portrait ? statusBarPt() : 0;
   return Math.max(0, need - reserved);
 }
+/* ============================================================
+   AUTO-FIT TOP BAR
+   Guessing screen widths kept missing phones by a few pixels. This measures
+   whether the bar has actually wrapped onto a second row and, if so, strips
+   the longest items until it fits. Any phone with room keeps everything.
+   ============================================================ */
+function barWrapped(tb){
+  /* Comparing children's offsetTop was wrong: the bar centres items
+     vertically, so a short title and a tall button sit at different offsets
+     on the SAME row. Compare the bar's height to its tallest item instead -
+     one row means the bar is only as tall as its biggest child plus padding. */
+  const kids = Array.prototype.filter.call(tb.children, c => c.offsetParent !== null);
+  if(!kids.length) return false;
+  let tallest = 0;
+  kids.forEach(k => { if(k.offsetHeight > tallest) tallest = k.offsetHeight; });
+  const cs = getComputedStyle(tb);
+  const pad = (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0);
+  return tb.offsetHeight > tallest + pad + 8;
+}
+function fitTopBar(){
+  const tb = document.getElementById('topbar');
+  if(!tb) return;
+  const cl = document.body.classList;
+  cl.remove('compact1','compact2');
+  if(!barWrapped(tb)) return;              // fits as-is - nothing to do
+  cl.add('compact1');                      // drop "ON THE CLOCK", shorten Roster
+  refreshRosterLabel();
+  if(!barWrapped(tb)) return;
+  cl.add('compact2');                      // drop the title, labels to icons
+  refreshRosterLabel();
+}
 function applyTopInset(){
   /* No longer needed: with viewport-fit=cover removed, iOS keeps the page
      inside the safe area on its own. Kept as a no-op so the existing call
@@ -2144,7 +2191,7 @@ function reFit(){ if(fitActive === 'all') fitAll(); else if(fitActive === 'width
 /* The Roster button shortens itself when there is not room for the full
    wording. Only ever engages on narrow screens. */
 function rosterLabelText(open){
-  const tight = window.innerWidth < 900;   // covers 844 and 874pt phones
+  const tight = document.body.classList.contains('compact1');
   if(open)  return tight ? '\u2715 Roster' : '\u2715 Hide Roster';
   return tight ? '\u2630 Roster' : '\u2630 Show Roster';
 }
@@ -2288,6 +2335,7 @@ function applyLayout(){
   document.body.classList.toggle('landscape', land);
   arrangeChrome(phone, land);
   refreshRosterLabel();
+  requestAnimationFrame(fitTopBar);
   if(land) document.body.classList.remove('chrome-min');
   updateViewSeg();
   const pw = document.getElementById('poolWrap');
@@ -2410,7 +2458,7 @@ function shiftRosterBottom(){
 }
 window.addEventListener('resize', () => requestAnimationFrame(applyLayout));
 window.addEventListener('orientationchange', () => {
-  [60, 250, 600].forEach(d => setTimeout(() => { applyTopInset(); applyLayout(); sizeWideScreen(); }, d));
+  [60, 250, 600].forEach(d => setTimeout(() => { applyTopInset(); applyLayout(); sizeWideScreen(); fitTopBar(); }, d));
 });
 window.addEventListener('resize', () => { applyTopInset(); });
 window.addEventListener('orientationchange', () => setTimeout(applyLayout, 250));
