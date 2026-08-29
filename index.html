@@ -1045,7 +1045,7 @@
     <div class="howRow"><b>Full screen on your phone</b> Open the board in Safari, tap Share, then <b>Add to Home Screen</b>. Launching from that icon drops the address bar and tabs entirely — with ⤢ it's all board.</div>
 
     <p class="hint" style="margin-top:14px;">Tap <b>?</b> up top to see this again anytime.</p>
-    <p class="hint" style="font-size:11px;opacity:.6;">Build <b id="buildStamp">v41</b> &middot; <span id="modeStamp">browser</span></p>
+    <p class="hint" style="font-size:11px;opacity:.6;">Build <b id="buildStamp">v42</b> &middot; <span id="modeStamp">browser</span></p>
     <p class="hint" style="font-size:11px;opacity:.8;background:var(--panel-2);border:1px solid var(--line);
        border-radius:6px;padding:8px 10px;font-family:'JetBrains Mono';line-height:1.7;">
       <span id="diagOut">diagnostics…</span></p>
@@ -1744,6 +1744,65 @@ function shiftHasUncoveredOpening(s, excludeName){
   });
 }
 
+/* How many rigs on shift `s` still have no medic of their own?
+   A medic sitting in the Captain seat is acting as captain and does NOT
+   cover the rig, so that rig still needs one. */
+function uncoveredRigsOn(s, sim, excludeName){
+  let n = 0;
+  stations.forEach(st => {
+    const covered = st.slots.some(sl => {
+      if(sl.key === 'capt') return false;
+      const who = sim[`${s}|${st.id}|${sl.key}`];
+      return who && who !== excludeName && isMedic(who);
+    });
+    if(!covered) n++;
+  });
+  return n;
+}
+
+/* LOOKAHEAD.
+   Checking one placement at a time cannot see a trap forming: medics get
+   spent elsewhere, then late in the bid a rig is left uncovered on a shift
+   that is already at quota, and the only legal move breaks balance.
+   This asks, before allowing a placement: with the medics still unplaced,
+   can every uncovered rig still be covered AND the shifts still finish even?
+   If not, the placement is refused now - while there is still a choice. */
+function medicPlacementFeasible(payload, shift){
+  const sim = Object.assign({}, assignments);
+  const {base, R} = balanceState(payload.name);
+  const counts = {A:base.A, B:base.B, C:base.C};
+  counts[shift]++;                       // pretend they took it
+  const left = R - 1;                    // medics still to be placed after this
+  if(left < 0) return true;
+
+  /* 1. enough medics left to cover every rig that still needs one? */
+  let need = 0;
+  const perShift = {};
+  ['A','B','C'].forEach(s => {
+    perShift[s] = uncoveredRigsOn(s, sim, payload.name);
+    need += perShift[s];
+  });
+  /* the rig they are taking right now stops needing one */
+  const p = shift;
+  if(perShift[p] > 0) need = Math.max(0, need - 1);
+  if(left < need) return false;
+
+  /* 2. can each shift absorb its own uncovered rigs without blowing its cap?
+        Balanced means no shift may exceed ceil(total/3). */
+  const total = counts.A + counts.B + counts.C + left;
+  const cap = Math.ceil(total / 3);
+  let stillNeeded = 0;
+  ['A','B','C'].forEach(s => {
+    const u = (s === p) ? Math.max(0, perShift[s] - 1) : perShift[s];
+    if(counts[s] + u > cap) stillNeeded = Infinity;   // that shift cannot take them
+    stillNeeded += u;
+  });
+  if(stillNeeded === Infinity) return false;
+
+  /* 3. does a balanced finish remain reachable at all? */
+  return canBalance([counts.A, counts.B, counts.C], left);
+}
+
 function balanceBlock(payload, targetId){
   if(!balanceOn || !isMedic(payload.name)) return null;
   const kind = slotMeta[targetId].kind;
@@ -1769,22 +1828,29 @@ function balanceBlock(payload, targetId){
   }
 
   if(uncoveredRig){
-    /* Coverage outranks balance - but only steer them away if somewhere else
-       ALSO needs coverage and would keep the shifts even. Otherwise allow it,
-       so covering every rig can never dead-end. */
-    if(test(shift)) return null;
+    /* Covering a rig always beats balance - but never at the cost of stranding
+       another rig later. */
+    if(test(shift) || medicPlacementFeasible(payload, shift)) return null;
     const better = ['A','B','C'].filter(s =>
       s !== shift && test(s) && shiftHasUncoveredOpening(s, payload.name));
     if(!better.length) return null;                  // nowhere better - coverage wins
     return `Paramedic balance: ${better.join(' or ')} shift still has a rig with no medic and needs the numbers. Put ${first} there first.`;
   }
 
-  if(test(shift)) return null;
-  const allowed = ['A','B','C'].filter(test);
-  return allowed.length
-    ? `Paramedic balance: ${shift} shift already has enough medics. ${first} needs to bid ${allowed.join(' or ')} shift to keep the shifts even.`
+  /* Not a coverage case: must keep the shifts even AND leave enough medics
+     to cover every rig that still needs one. */
+  if(test(shift) && medicPlacementFeasible(payload, shift)) return null;
+
+  const allowed = ['A','B','C'].filter(s => test(s) && medicPlacementFeasible(payload, s));
+  if(allowed.length){
+    return `Paramedic balance: ${shift} shift already has enough medics. ${first} needs to bid ${allowed.join(' or ')} shift to keep the shifts even and still cover every rig.`;
+  }
+  const coverFirst = ['A','B','C'].filter(s => shiftHasUncoveredOpening(s, payload.name));
+  return coverFirst.length
+    ? `Rig coverage: every remaining medic is needed on a rig with none. ${first} has to take an open medic seat on ${coverFirst.join(' or ')} shift.`
     : `Paramedic balance: adding another medic here would unbalance the shifts. Free up a seat elsewhere first.`;
 }
+
 
 function rigCoverageBlock(payload, targetId){
   if(!isMedic(payload.name)) return null;
