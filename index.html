@@ -1045,7 +1045,7 @@
     <div class="howRow"><b>Full screen on your phone</b> Open the board in Safari, tap Share, then <b>Add to Home Screen</b>. Launching from that icon drops the address bar and tabs entirely — with ⤢ it's all board.</div>
 
     <p class="hint" style="margin-top:14px;">Tap <b>?</b> up top to see this again anytime.</p>
-    <p class="hint" style="font-size:11px;opacity:.6;">Build <b id="buildStamp">v44</b> &middot; <span id="modeStamp">browser</span></p>
+    <p class="hint" style="font-size:11px;opacity:.6;">Build <b id="buildStamp">v48</b> &middot; <span id="modeStamp">browser</span></p>
     <p class="hint" style="font-size:11px;opacity:.8;background:var(--panel-2);border:1px solid var(--line);
        border-radius:6px;padding:8px 10px;font-family:'JetBrains Mono';line-height:1.7;">
       <span id="diagOut">diagnostics…</span></p>
@@ -1142,7 +1142,7 @@ let roster = [
   {name:"Mason, Matthew", rank:"captain", quals:[]},
   {name:"Caceres, Eric", rank:"captain", quals:["RS"]},
   {name:"Ryan, Vincent", rank:"captain", quals:[]},
-  {name:"Bader, Travis", rank:"captain", quals:["PM","RS"]},
+  {name:"Bader, Travis", rank:"captain", quals:["RS"]},
   {name:"Sousa, Scott", rank:"captain", quals:["RS"]},
   {name:"McNichol Jr, Robert", rank:"ff", quals:["PM"]},
   {name:"Murray, Joseph", rank:"ff", quals:["RS"]},
@@ -1726,158 +1726,83 @@ function balanceState(excludeName){
   roster.forEach(r => { if(isMedic(r.name) && !placedSet.has(r.name) && r.name !== excludeName) R++; });
   return {base, R};
 }
-/* Does shift `s` still have a rig with no medic AND an open non-captain seat?
-   Used before steering someone to another shift, so we never point them
-   somewhere they cannot actually be placed. */
-function shiftHasUncoveredOpening(s, excludeName){
-  return stations.some(st => {
-    const seats = st.slots.filter(sl => sl.key !== 'capt');
-    const covered = seats.some(sl => {
-      const n = assignments[`${s}|${st.id}|${sl.key}`];
-      return n && n !== excludeName && isMedic(n);
-    });
-    if(covered) return false;
-    return seats.some(sl => {
-      const n = assignments[`${s}|${st.id}|${sl.key}`];
-      return !n || n === excludeName;
-    });
-  });
-}
-
-/* How many rigs on shift `s` still have no medic of their own?
-   A medic sitting in the Captain seat is acting as captain and does NOT
-   cover the rig, so that rig still needs one. */
-function uncoveredRigsOn(s, sim, excludeName){
-  let n = 0;
-  stations.forEach(st => {
-    const covered = st.slots.some(sl => {
-      if(sl.key === 'capt') return false;
-      const who = sim[`${s}|${st.id}|${sl.key}`];
-      return who && who !== excludeName && isMedic(who);
-    });
-    if(!covered) n++;
-  });
-  return n;
-}
-
-/* LOOKAHEAD.
-   Checking one placement at a time cannot see a trap forming: medics get
-   spent elsewhere, then late in the bid a rig is left uncovered on a shift
-   that is already at quota, and the only legal move breaks balance.
-   This asks, before allowing a placement: with the medics still unplaced,
-   can every uncovered rig still be covered AND the shifts still finish even?
-   If not, the placement is refused now - while there is still a choice. */
-function medicPlacementFeasible(payload, shift){
-  const {base, R} = balanceState(payload.name);
-  const counts = {A:base.A, B:base.B, C:base.C};
-  counts[shift]++;                       // pretend they took it
-  const left = R - 1;                    // medics still to be placed after this
-  if(left < 0) return true;
-
-  const total = counts.A + counts.B + counts.C + left;
-  const cap   = Math.ceil(total / 3);    // no shift may finish above this
-  const RIGS  = stations.length;         // every rig needs one medic
-
-  /* 1. this shift cannot finish above the balanced cap */
-  if(counts[shift] > cap) return false;
-
-  /* 2. can every shift still reach one medic per rig?
-        A shift already holding spare medics can move one onto an empty rig,
-        so what matters is the shift's TOTAL, not how they are arranged -
-        assuming otherwise is what wrongly blocked a harmless double-up. */
-  let shortfall = 0;
-  ['A','B','C'].forEach(s => { shortfall += Math.max(0, RIGS - counts[s]); });
-  if(shortfall > left) return false;
-
-  /* 3. a balanced finish must remain reachable */
-  return canBalance([counts.A, counts.B, counts.C], left);
-}
-
-
-function balanceBlock(payload, targetId){
+/* ============================================================
+   MEDIC RULE
+   Doubling up is fine. What is not fine is doubling up to a shift's maximum
+   while that shift still has a rig with no medic - the shift would then have
+   no room left to cover it, and some later medic would be FORCED onto it.
+   So the test is simply:
+        shift's medics + that shift's bare rigs  <=  cap
+   Captain seats never count as coverage and never count toward a shift total.
+   People stay where they bid, so nothing is assumed movable.
+   ============================================================ */
+function medicRuleBlock(payload, targetId){
   if(!balanceOn || !isMedic(payload.name)) return null;
   const kind = slotMeta[targetId].kind;
   if(!['medic','flex','float'].includes(kind)) return null;
 
-  const shift = targetId.startsWith('float|') ? targetId.split('|')[1] : targetId.split('|')[0];
-  const {base, R} = balanceState(payload.name);
-  const test = s => { const b = {A:base.A, B:base.B, C:base.C}; b[s]++; return canBalance([b.A,b.B,b.C], R); };
-  const first = payload.name.split(',')[0];
-
-  /* Is the rig they are aiming at still without a medic? */
-  let uncoveredRig = false;
-  if(!targetId.startsWith('float|') && !targetId.startsWith('off|')){
-    const p0 = targetId.split('|'); const S0 = p0[0], ST0 = p0[1];
-    const st0 = stations.find(x => x.id === ST0);
-    if(st0){
-      uncoveredRig = !st0.slots.some(sl => {
-        if(sl.key === 'capt') return false;          // acting captain doesn't cover the rig
-        const n = assignments[`${S0}|${ST0}|${sl.key}`];
-        return n && n !== payload.name && isMedic(n);
-      });
-    }
-  }
-
-  if(uncoveredRig){
-    /* This placement COVERS a rig that had no medic. That is the top priority
-       and is never refused on feasibility grounds - refusing it was the bug
-       that stopped Villeggiante taking a seat a later medic could take.
-       The only reason to steer is if another shift ALSO has an uncovered rig
-       and this shift is already over quota. */
-    if(test(shift)) return null;
-    const better = ['A','B','C'].filter(s =>
-      s !== shift && test(s) && shiftHasUncoveredOpening(s, payload.name));
-    if(!better.length) return null;                  // nowhere better - coverage wins
-    return `Paramedic balance: ${better.join(' or ')} shift still has a rig with no medic and needs the numbers. Put ${first} there first.`;
-  }
-
-  /* Not a coverage case - they are doubling up on a rig that already has a
-     medic. THIS is where the lookahead belongs: a wasted medic here can
-     strand a rig somewhere else later. */
-  if(test(shift) && medicPlacementFeasible(payload, shift)) return null;
-
-  const allowed = ['A','B','C'].filter(s => test(s) && medicPlacementFeasible(payload, s));
-  if(allowed.length){
-    return `Paramedic balance: ${shift} shift already has enough medics. ${first} needs to bid ${allowed.join(' or ')} shift to keep the shifts even and still cover every rig.`;
-  }
-  const coverFirst = ['A','B','C'].filter(s => shiftHasUncoveredOpening(s, payload.name));
-  return coverFirst.length
-    ? `Rig coverage: every remaining medic is needed on a rig with none. ${first} has to take an open medic seat on ${coverFirst.join(' or ')} shift.`
-    : `Paramedic balance: adding another medic here would unbalance the shifts. Free up a seat elsewhere first.`;
-}
-
-
-function rigCoverageBlock(payload, targetId){
-  if(!isMedic(payload.name)) return null;
-  if(targetId.startsWith('float|') || targetId.startsWith('off|')) return null;
-  const p = targetId.split('|'); const S = p[0], STID = p[1];
-  const st = stations.find(x => x.id === STID); if(!st) return null;
   const sim = Object.assign({}, assignments);
-  if(payload.sourceType === 'slot'){ sim[payload.slotId] = assignments[targetId] || null; }
+  if(payload.sourceType === 'slot') sim[payload.slotId] = assignments[targetId] || null;
   sim[targetId] = payload.name;
-  const rigMedics = st.slots.filter(sl => sl.key !== 'capt')
-    .map(sl => `${S}|${STID}|${sl.key}`).filter(id => { const n = sim[id]; return n && isMedic(n); }).length;
-  if(rigMedics < 2) return null;                    // first medic on this rig — always allowed
-  let bare = 0;                                     // rigs (not floats) with no medic anywhere, across all shifts
-  shifts.forEach(s => stations.forEach(x => {
-    const seats = x.slots.filter(sl => sl.key !== 'capt').map(sl => `${s}|${x.id}|${sl.key}`);
-    if(!seats.some(id => { const n = sim[id]; return n && isMedic(n); })) bare++;
+
+  /* rigs with no medic of their own, per shift */
+  const bareBy = {A:[], B:[], C:[]};
+  shifts.forEach(s => stations.forEach(st => {
+    const covered = st.slots.some(sl => {
+      if(sl.key === 'capt') return false;
+      const n = sim[`${s}|${st.id}|${sl.key}`];
+      return n && isMedic(n);
+    });
+    if(!covered) bareBy[s].push(st.title);
   }));
+  const bareTotal = bareBy.A.length + bareBy.B.length + bareBy.C.length;
+
+  /* medics not yet placed anywhere */
   const placedSet = new Set(Object.values(sim).filter(Boolean));
   let remaining = 0;
   roster.forEach(r => { if(isMedic(r.name) && !placedSet.has(r.name)) remaining++; });
-  if(remaining >= bare) return null;
+
+  /* medics per shift (captain seats and training/holding excluded) */
+  const counts = {A:0, B:0, C:0};
+  Object.keys(sim).forEach(id => {
+    const n = sim[id]; if(!n || !isMedic(n)) return;
+    if(id.startsWith('off|')) return;
+    if(id.startsWith('float|')){ counts[id.split('|')[1]]++; return; }
+    const p = id.split('|');
+    if(p[1] === 'bc' || p[2] === 'capt') return;
+    counts[p[0]]++;
+  });
+
+  const shift = targetId.startsWith('float|') ? targetId.split('|')[1] : targetId.split('|')[0];
+  const cap   = Math.ceil((counts.A + counts.B + counts.C + remaining) / 3);
   const first = payload.name.split(',')[0];
-  return `Every rig needs a medic first — this doubles up ${st.title} while another rig still has none. Put ${first} on a rig with no medic yet.`;
+
+  /* 1. enough medics left to cover every bare rig anywhere? */
+  if(remaining < bareTotal){
+    return `Not enough medics left: ${bareTotal} rigs still need one and only ${remaining} medics are unplaced.`;
+  }
+
+  /* 2. would this shift run out of room to cover its own bare rigs? */
+  const openHere = bareBy[shift].length;
+  if(counts[shift] + openHere > cap){
+    return `${shift} shift would have ${counts[shift]} medics with ${openHere} rig${openHere>1?'s':''} still needing one (${bareBy[shift].join(', ')}) — that shift tops out at ${cap}. Put ${first} on an open rig spot instead.`;
+  }
+
+  /* 3. plain cap */
+  if(counts[shift] > cap){
+    const other = ['A','B','C'].filter(s => s !== shift && counts[s] < cap);
+    return `${shift} shift would have ${counts[shift]} medics — ${cap} is the most any shift can carry.` +
+           (other.length ? ` Put ${first} on ${other.join(' or ')} shift.` : '');
+  }
+  return null;
 }
+
 function placeIntoSlot(payload, targetId){
   if(payload.sourceType === 'slot' && payload.slotId === targetId) return true;
   const err = validateMove(payload, targetId);
   if(err !== null){ if(err) showToast(err, 'error'); return false; }
-  const cmsg = rigCoverageBlock(payload, targetId);
-  if(cmsg){ showToast(cmsg, 'info'); return false; }
-  const bmsg = balanceBlock(payload, targetId);
-  if(bmsg){ showToast(bmsg, 'info'); return false; }
+  const mmsg = medicRuleBlock(payload, targetId);
+  if(mmsg){ showToast(mmsg, 'info'); return false; }
   const targetName = assignments[targetId] || null;
   if(payload.sourceType === 'pool'){
     if(targetName) delete placed[targetName];
