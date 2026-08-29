@@ -1045,7 +1045,7 @@
     <div class="howRow"><b>Full screen on your phone</b> Open the board in Safari, tap Share, then <b>Add to Home Screen</b>. Launching from that icon drops the address bar and tabs entirely — with ⤢ it's all board.</div>
 
     <p class="hint" style="margin-top:14px;">Tap <b>?</b> up top to see this again anytime.</p>
-    <p class="hint" style="font-size:11px;opacity:.6;">Build <b id="buildStamp">v48</b> &middot; <span id="modeStamp">browser</span></p>
+    <p class="hint" style="font-size:11px;opacity:.6;">Build <b id="buildStamp">v49</b> &middot; <span id="modeStamp">browser</span></p>
     <p class="hint" style="font-size:11px;opacity:.8;background:var(--panel-2);border:1px solid var(--line);
        border-radius:6px;padding:8px 10px;font-family:'JetBrains Mono';line-height:1.7;">
       <span id="diagOut">diagnostics…</span></p>
@@ -1774,26 +1774,41 @@ function medicRuleBlock(payload, targetId){
   });
 
   const shift = targetId.startsWith('float|') ? targetId.split('|')[1] : targetId.split('|')[0];
-  const cap   = Math.ceil((counts.A + counts.B + counts.C + remaining) / 3);
   const first = payload.name.split(',')[0];
+
+  /* An even split of `total` medics across 3 shifts is `base` each, with
+     `rem` shifts carrying one extra. 34 medics -> 11/11/11 + 1 spare, so
+     exactly ONE shift may hold 12. Two shifts at 12 is not "even". */
+  const total = counts.A + counts.B + counts.C + remaining;
+  const base  = Math.floor(total / 3);
+  const rem   = total % 3;
+
+  /* how many OTHER shifts are already carrying an extra? */
+  const othersAbove = ['A','B','C'].filter(s => s !== shift && counts[s] > base).length;
+  /* so the most THIS shift may hold */
+  const myMax = (othersAbove < rem) ? base + 1 : base;
 
   /* 1. enough medics left to cover every bare rig anywhere? */
   if(remaining < bareTotal){
     return `Not enough medics left: ${bareTotal} rigs still need one and only ${remaining} medics are unplaced.`;
   }
 
-  /* 2. would this shift run out of room to cover its own bare rigs? */
-  const openHere = bareBy[shift].length;
-  if(counts[shift] + openHere > cap){
-    return `${shift} shift would have ${counts[shift]} medics with ${openHere} rig${openHere>1?'s':''} still needing one (${bareBy[shift].join(', ')}) — that shift tops out at ${cap}. Put ${first} on an open rig spot instead.`;
-  }
-
-  /* 3. plain cap */
-  if(counts[shift] > cap){
-    const other = ['A','B','C'].filter(s => s !== shift && counts[s] < cap);
-    return `${shift} shift would have ${counts[shift]} medics — ${cap} is the most any shift can carry.` +
+  /* 2. this shift over its own maximum? */
+  if(counts[shift] > myMax){
+    const other = ['A','B','C'].filter(s => s !== shift && counts[s] < base + (rem > 0 ? 1 : 0));
+    const why = (myMax === base && rem > 0)
+      ? ` Only ${rem} shift can carry ${base + 1}, and that is already taken.`
+      : '';
+    return `${shift} shift would have ${counts[shift]} medics — the most it can carry is ${myMax}.${why}` +
            (other.length ? ` Put ${first} on ${other.join(' or ')} shift.` : '');
   }
+
+  /* 3. would it run out of room to cover its own bare rigs? */
+  const openHere = bareBy[shift].length;
+  if(counts[shift] + openHere > myMax){
+    return `${shift} shift would have ${counts[shift]} medics with ${openHere} rig${openHere>1?'s':''} still needing one (${bareBy[shift].join(', ')}) — that shift tops out at ${myMax}. Put ${first} on an open rig spot instead.`;
+  }
+
   return null;
 }
 
