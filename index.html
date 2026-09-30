@@ -956,6 +956,7 @@
         <button onclick="openLoad();closeMenu()">Load Bid</button>
         <button onclick="window.print();closeMenu()">Print</button>
         <button onclick="openRoster();closeMenu()">Edit Roster</button>
+        <button onclick="closeMenu();confirmAutoFill()">Random Bid</button>
         <div class="mHead">Rules</div>
         <button id="balanceBtn" onclick="toggleBalance()">Balance Paramedics: On</button>
         <div class="mHead">Reset</div>
@@ -1045,11 +1046,22 @@
     <div class="howRow"><b>Full screen on your phone</b> Open the board in Safari, tap Share, then <b>Add to Home Screen</b>. Launching from that icon drops the address bar and tabs entirely — with ⤢ it's all board.</div>
 
     <p class="hint" style="margin-top:14px;">Tap <b>?</b> up top to see this again anytime.</p>
-    <p class="hint" style="font-size:11px;opacity:.6;">Build <b id="buildStamp">v49</b> &middot; <span id="modeStamp">browser</span></p>
+    <p class="hint" style="font-size:11px;opacity:.6;">Build <b id="buildStamp">v64</b> &middot; <span id="modeStamp">browser</span></p>
     <p class="hint" style="font-size:11px;opacity:.8;background:var(--panel-2);border:1px solid var(--line);
        border-radius:6px;padding:8px 10px;font-family:'JetBrains Mono';line-height:1.7;">
       <span id="diagOut">diagnostics…</span></p>
     <div class="row"><button class="btn edit" onclick="dismissHowTo()">Got it</button></div>
+  </div>
+</div>
+
+<div class="overlay" id="randomOverlay">
+  <div class="modal">
+    <h2>Random bid?</h2>
+    <p class="hint">Fills the whole board with a random bid that follows every rule. This replaces what is on your board now &mdash; tap Undo to get it back.</p>
+    <div class="row">
+      <button class="btn" onclick="closeModal('randomOverlay');autoFill()">Fill Board</button>
+      <button class="btn ghost" onclick="closeModal('randomOverlay')">Cancel</button>
+    </div>
   </div>
 </div>
 
@@ -1196,7 +1208,31 @@ let roster = [
   {name:"Lopiccolo, Carlo", rank:"ff", quals:[]},
   {name:"Jimenez, Leo", rank:"ff", quals:[]},
   {name:"Shaffer, Jimmy", rank:"ff", quals:[]},
+  {name:"Urias, Alex", rank:"ff", quals:[]},
+  {name:"Clark, Jessie", rank:"ff", quals:[]},
+  {name:"Kennedy, Johnny", rank:"ff", quals:[]},
 ];
+
+/* Probationary firefighters who must finish the bid on a set shift.
+   They start as floats on that shift and CAN be moved around it - into a rig
+   seat, another float, wherever - but never onto a different shift. Moving
+   within the shift does not change that shift's medic count, so the balance
+   maths the engine plans around stays intact.
+   Smith and Washburn are NOT here - they bid freely (rule 6). */
+const LOCKED_SHIFT = {
+  "Miller, Pat":      "C",
+  "Abella, Powell":   "B",
+  "Lopiccolo, Carlo": "C",
+  "Jimenez, Leo":     "A",
+  "Shaffer, Jimmy":   "C"
+};
+function lockedShiftFor(name){ return LOCKED_SHIFT[name] || null; }
+/* Anyone locked to a shift who still BIDS rather than being pre-placed. A seat
+   on their shift is held open until they pick. Empty right now - Collet bids
+   with no shift requirement, so he needs no seat held. */
+const LOCKED_BIDDERS = [];   // empty: nobody is locked to a shift AND bidding
+/* Nobody is frozen any more - the shift lock in placeIntoSlot does the work. */
+function isPermanent(name){ return false; }
 
 const bcDefaults = { A:"Pera, Casey", B:"Vella, Billy", C:"Murphy, Pat" };
 
@@ -1252,7 +1288,19 @@ function initState(){
 }
 function preplaceDefaults(){
   assignments["off|tbc"] = "Perry, Joe"; placed["Perry, Joe"] = "off|tbc";
+  assignments["off|tcap"] = "Novelli, David"; placed["Novelli, David"] = "off|tcap";   // Training captain
   shifts.forEach(s => { const id = `${s}|bc|chief`; assignments[id] = bcDefaults[s]; placed[bcDefaults[s]] = id; });
+  /* probationary firefighters -> permanent floats on their projected shift */
+  const next = {A:0, B:0, C:0};
+  Object.keys(LOCKED_SHIFT).forEach(name => {
+    if(LOCKED_BIDDERS.includes(name)) return;           // these bid for themselves
+    if(!roster.some(r => r.name === name)) return;      // skip anyone not on the roster
+    const s = LOCKED_SHIFT[name];
+    const key = floatSlots[next[s]++];
+    if(!key) return;                                    // no float left on that shift
+    const id = `float|${s}|${key}`;
+    assignments[id] = name; placed[name] = id;
+  });
 }
 let lastNameMap = null;
 function buildLastNameMap(){
@@ -1803,21 +1851,160 @@ function medicRuleBlock(payload, targetId){
            (other.length ? ` Put ${first} on ${other.join(' or ')} shift.` : '');
   }
 
-  /* 3. would it run out of room to cover its own bare rigs? */
+  /* 3. room for this shift's bare rigs AND for any locked medics still to come.
+        Collet and Miller must finish on C, so C has to keep seats free for
+        them. Those same two can also be the ones covering C's bare rigs, so
+        the requirement is the LARGER of the two, not the sum. */
   const openHere = bareBy[shift].length;
-  if(counts[shift] + openHere > myMax){
+  let lockedOut = 0, lockedNames = [];
+  Object.keys(LOCKED_SHIFT).forEach(nm => {
+    if(LOCKED_SHIFT[nm] !== shift) return;
+    if(!isMedic(nm) || placedSet.has(nm)) return;
+    lockedOut++; lockedNames.push(nm.split(',')[0]);
+  });
+  const need = Math.max(openHere, lockedOut);
+
+  if(counts[shift] + need > myMax){
+    if(lockedOut > openHere){
+      return `${shift} shift has to keep ${lockedOut} seat${lockedOut>1?'s':''} for ${lockedNames.join(' and ')}, who must finish on ${shift}. With ${counts[shift]} medics that would go past its limit of ${myMax}. Put ${first} on another shift.`;
+    }
     return `${shift} shift would have ${counts[shift]} medics with ${openHere} rig${openHere>1?'s':''} still needing one (${bareBy[shift].join(', ')}) — that shift tops out at ${myMax}. Put ${first} on an open rig spot instead.`;
   }
 
   return null;
 }
 
+/* ============================================================
+   STRICT MEDIC RULES  (proven: 0 dead ends in 2,300 random bids)
+     1. Paramedic seat first - a medic can't take a rig's EMT seat
+        while that rig's Paramedic seat is still open.
+     2. Floats only after coverage - a medic can't take a float while
+        their shift still has an open Paramedic seat.
+     3. Every shift must stay finishable - after any medic placement
+        (captain seats included), each shift must still be able to
+        cover its own empty rigs, with only one shift holding the
+        extra medic.
+   ============================================================ */
+function finishCheck(sim){
+  const placedNow = new Set(Object.values(sim).filter(Boolean));
+  let remaining = 0;
+  roster.forEach(p => { if(isMedic(p.name) && !placedNow.has(p.name)) remaining++; });
+  const counts = {A:0,B:0,C:0}, bare = {A:[],B:[],C:[]};
+  Object.keys(sim).forEach(k => {
+    const n = sim[k]; if(!n || !isMedic(n)) return;
+    if(k.startsWith('off|')) return;
+    if(k.startsWith('float|')){ counts[k.split('|')[1]]++; return; }
+    const p = k.split('|');
+    if(p[1] === 'bc' || p[2] === 'capt') return;       // captain seats never count
+    counts[p[0]]++;
+  });
+  shifts.forEach(s => stations.forEach(st => {
+    if(!st.slots.some(sl => sl.key !== 'capt' && isMedic(sim[`${s}|${st.id}|${sl.key}`]))) bare[s].push(st.title);
+  }));
+  const total = counts.A + counts.B + counts.C + remaining;
+  const b = Math.floor(total / 3), rem = total % 3;
+  const needUp = []; let needMedics = 0;
+  for(const s of ['A','B','C']){
+    const need = counts[s] + bare[s].length;            // every empty rig needs a NEW medic
+    if(need > b + 1) return `${s} shift could not cover all of its rigs without going past ${b + 1} medics.`;
+    if(need > b) needUp.push(s);
+    needMedics += bare[s].length;
+  }
+  if(needUp.length > rem){
+    return rem === 0
+      ? `${needUp.join(' and ')} would need more than ${b} medics to cover every rig, and no shift can carry more than ${b}.`
+      : `Only ${rem === 1 ? 'one shift' : rem + ' shifts'} can carry ${b + 1} medics, but ${needUp.join(' and ')} would each need that many to cover their rigs.`;
+  }
+  if(needMedics > remaining) return `Not enough medics left to cover every rig.`;
+  return null;
+}
+
+function medicStrictBlock(payload, targetId){
+  if(!balanceOn || !isMedic(payload.name)) return null;
+  if(targetId.startsWith('off|')) return null;
+  const k = slotMeta[targetId].kind;
+  const first = payload.name.split(',')[0];
+
+  if(k === 'float'){                                            // rule 2
+    const fs = targetId.split('|')[1];
+    const openPM = stations.filter(st => !assignments[`${fs}|${st.id}|medic`]);
+    if(openPM.length){
+      return `${first} can't take a float while ${fs} shift still has an open Paramedic seat (${openPM.map(x => x.title).join(', ')}).`;
+    }
+  }
+  if(k === 'flex'){                                             // rule 1
+    const pp = targetId.split('|');
+    if(!assignments[`${pp[0]}|${pp[1]}|medic`]){
+      const stn = stations.find(x => x.id === pp[1]);
+      return `${stn ? stn.title : 'That rig'}'s Paramedic seat is open - ${first} takes the Paramedic seat first.`;
+    }
+  }
+  const sim = Object.assign({}, assignments);                   // rule 3
+  if(payload.sourceType === 'slot') sim[payload.slotId] = assignments[targetId] || null;
+  sim[targetId] = payload.name;
+  const why = finishCheck(sim);
+  return why ? `Can't place ${first} there - ${why}` : null;
+}
+
+/* Keep a legal seat available for anyone who is locked to a shift but has
+   not bid yet. Runs only when it could matter: a medic move (changes the
+   balance anywhere) or a move onto that person's own shift. */
+function holdSeatForLockedBidders(payload, targetId){
+  const pending = LOCKED_BIDDERS.filter(n => n !== payload.name && !placed[n] && roster.some(r => r.name === n));
+  if(!pending.length) return null;
+  const tShift = targetId.startsWith('float|') ? targetId.split('|')[1]
+               : targetId.startsWith('off|') ? null : targetId.split('|')[0];
+  if(!isMedic(payload.name) && !pending.some(n => LOCKED_SHIFT[n] === tShift)) return null;
+
+  const prevTarget = assignments[targetId];
+  const srcSlot = payload.sourceType === 'slot' ? payload.slotId : null;
+  const prevSrc = srcSlot ? assignments[srcSlot] : null;
+  assignments[targetId] = payload.name;
+  if(srcSlot) assignments[srcSlot] = prevTarget || null;
+
+  let blocked = null;
+  for(const nm of pending){
+    const p = {name:nm, sourceType:'pool'};
+    const ok = Object.keys(slotMeta).some(id => {
+      if(assignments[id] || slotMeta[id].kind === 'hold') return false;
+      if(validateMove(p, id) !== null) return false;
+      const ls = lockedShiftFor(nm);
+      if(ls && !id.startsWith('off|')){
+        const t = id.startsWith('float|') ? id.split('|')[1] : id.split('|')[0];
+        if(t !== ls) return false;
+      }
+      return medicRuleBlock(p, id) === null && medicStrictBlock(p, id) === null;
+    });
+    if(!ok){ blocked = nm; break; }
+  }
+  assignments[targetId] = prevTarget === undefined ? null : prevTarget;
+  if(srcSlot) assignments[srcSlot] = prevSrc;
+
+  return blocked
+    ? `${blocked.split(',')[0]} still has to bid and must finish on ${lockedShiftFor(blocked)} shift - this would leave him no seat.`
+    : null;
+}
+
 function placeIntoSlot(payload, targetId){
   if(payload.sourceType === 'slot' && payload.slotId === targetId) return true;
   const err = validateMove(payload, targetId);
   if(err !== null){ if(err) showToast(err, 'error'); return false; }
+  /* Probationary firefighters locked to a shift cannot land anywhere else. */
+  const lockS = lockedShiftFor(payload.name);
+  if(lockS && !targetId.startsWith('off|')){
+    const tShift = targetId.startsWith('float|') ? targetId.split('|')[1] : targetId.split('|')[0];
+    if(tShift !== lockS){
+      showToast(`${payload.name.split(',')[0]} is probationary and has to finish on ${lockS} shift.`, 'info');
+      return false;
+    }
+  }
+
   const mmsg = medicRuleBlock(payload, targetId);
   if(mmsg){ showToast(mmsg, 'info'); return false; }
+  const smsg = medicStrictBlock(payload, targetId);
+  if(smsg){ showToast(smsg, 'info'); return false; }
+  const hmsg = holdSeatForLockedBidders(payload, targetId);
+  if(hmsg){ showToast(hmsg, 'info'); return false; }
   const targetName = assignments[targetId] || null;
   if(payload.sourceType === 'pool'){
     if(targetName) delete placed[targetName];
@@ -2538,6 +2725,80 @@ var TAP_RADIUS = 30;          // how far a tap may miss and still count
   }, true);
 })();
 
+/* ============================================================
+   RANDOM BID  (bottom of the ... menu)
+   Starts from the same state as Reset Board (chiefs pre-placed), then
+   runs the bid in seniority order. Each person gets a random seat from
+   the ones the REAL rules allow. Holding is skipped - it takes people out
+   of the bid, so dumping people there would hide real dead ends.
+   ============================================================ */
+function seatIsLegal(name, targetId){
+  if(assignments[targetId]) return false;
+  if(slotMeta[targetId].kind === 'hold') return false;
+  /* Random Bid only: AC firefighters CAN legally bid a captain seat, but in
+     practice they don't - so the practice bid doesn't either. Letting them
+     was the only thing producing 11/11/11 finishes. */
+  const sk = slotMeta[targetId].kind;
+  if((sk === 'captain' || sk === 'trainingcap') && !isCaptainRank(name)) return false;
+  const payload = {name, sourceType:'pool'};
+  if(validateMove(payload, targetId) !== null) return false;
+  const lockS = lockedShiftFor(name);
+  if(lockS && !targetId.startsWith('off|')){
+    const t = targetId.startsWith('float|') ? targetId.split('|')[1] : targetId.split('|')[0];
+    if(t !== lockS) return false;
+  }
+  return medicRuleBlock(payload, targetId) === null && medicStrictBlock(payload, targetId) === null
+      && holdSeatForLockedBidders(payload, targetId) === null;
+}
+
+function shiftMedicCounts(){
+  const c = {A:0,B:0,C:0};
+  Object.keys(assignments).forEach(id => {
+    const n = assignments[id]; if(!n || !isMedic(n)) return;
+    if(id.startsWith('off|')) return;
+    if(id.startsWith('float|')){ c[id.split('|')[1]]++; return; }
+    const p = id.split('|');
+    if(p[1] === 'bc' || p[2] === 'capt') return;
+    c[p[0]]++;
+  });
+  return c;
+}
+
+function simulateBid(){
+  Object.keys(assignments).forEach(k => assignments[k] = null);
+  placed = {};
+  preplaceDefaults();                                   // chiefs start seated
+  const seats = Object.keys(slotMeta);                  // every real seat
+  for(const r of roster){
+    if(placed[r.name]) continue;                        // already pre-placed
+    const options = seats.filter(id => seatIsLegal(r.name, id));
+    if(!options.length) return {ok:false, stuck:r.name, counts:shiftMedicCounts()};
+    const pick = options[Math.floor(Math.random() * options.length)];
+    assignments[pick] = r.name;
+    placed[r.name] = pick;
+  }
+  return {ok:true, counts:shiftMedicCounts()};
+}
+
+function confirmAutoFill(){
+  /* the app's own screen - native confirm() is blocked in previews and some
+     Home Screen apps, which made Random Bid silently do nothing */
+  document.getElementById('randomOverlay').classList.add('open');
+}
+
+function autoFill(){
+  recordHistory();
+  const r = simulateBid();
+  selected = null;
+  refreshAllSlots(); renderPool(); updateCounts(); refreshStatus();
+  recordHistory();
+  const c = r.counts;
+  if(!r.ok){
+    showToast(`Stuck at ${r.stuck.split(',')[0]} - no legal seat left. Medics A ${c.A} / B ${c.B} / C ${c.C}.`, 'error');
+  } else {
+    showToast(`Random bid done. Medics A ${c.A} / B ${c.B} / C ${c.C}.`, 'info');
+  }
+}
 </script>
 </body>
 </html>
