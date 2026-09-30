@@ -281,6 +281,17 @@
   .holGroupTitle.s-A{color:var(--red);} .holGroupTitle.s-B{color:var(--blue);} .holGroupTitle.s-C{color:var(--green);}
   .hrow{display:flex;align-items:baseline;gap:8px;padding:2px 0;font-size:11px;font-family:'Oswald',sans-serif;letter-spacing:.2px;}
   .hdate{color:var(--text-dim);min-width:70px;flex-shrink:0;} .hname{color:var(--text);}
+  /* ---- days off when switching shifts ---- */
+  .swNote{font-size:11px;color:var(--text-dim);line-height:1.55;margin-bottom:10px;max-width:460px;}
+  .swHead,.swRow{display:flex;align-items:baseline;gap:10px;font-size:11px;font-family:'Oswald',sans-serif;padding:3px 0;}
+  .swHead{color:var(--text-dim);letter-spacing:1px;text-transform:uppercase;font-size:9px;
+    border-bottom:1px solid var(--line);padding-bottom:5px;margin-bottom:3px;}
+  .swMove{min-width:74px;flex-shrink:0;font-weight:700;}
+  .swLast,.swFirst{min-width:62px;flex-shrink:0;color:var(--text-dim);}
+  .swOff{min-width:58px;flex-shrink:0;color:var(--text);font-weight:700;font-family:'JetBrains Mono',monospace;}
+  .swRow.same{opacity:.75;}
+  .sA{color:var(--red);} .sB{color:var(--blue);} .sC{color:var(--green);}
+  .swArrow{color:var(--text-dim);}
 
   /* ---- VIEW SEGMENTED TOGGLE (Phone | Full) ---- */
   .viewSeg{display:flex;background:var(--panel-2);border:1px solid var(--line);border-radius:5px;overflow:visible;flex-shrink:0;}
@@ -1009,6 +1020,10 @@
         <div class="infoToggle" onclick="toggleInfo('holList','holArrow')"><span id="holArrow">▸</span> Holidays 2027</div>
         <div id="holList" class="infoContent"></div>
       </div>
+      <div>
+        <div class="infoToggle" onclick="toggleInfo('swList','swArrow')"><span id="swArrow">▸</span> Days Off If You Switch</div>
+        <div id="swList" class="infoContent"></div>
+      </div>
     </div>
   </div>
 </div>
@@ -1046,7 +1061,7 @@
     <div class="howRow"><b>Full screen on your phone</b> Open the board in Safari, tap Share, then <b>Add to Home Screen</b>. Launching from that icon drops the address bar and tabs entirely — with ⤢ it's all board.</div>
 
     <p class="hint" style="margin-top:14px;">Tap <b>?</b> up top to see this again anytime.</p>
-    <p class="hint" style="font-size:11px;opacity:.6;">Build <b id="buildStamp">v64</b> &middot; <span id="modeStamp">browser</span></p>
+    <p class="hint" style="font-size:11px;opacity:.6;">Build <b id="buildStamp">v65</b> &middot; <span id="modeStamp">browser</span></p>
     <p class="hint" style="font-size:11px;opacity:.8;background:var(--panel-2);border:1px solid var(--line);
        border-radius:6px;padding:8px 10px;font-family:'JetBrains Mono';line-height:1.7;">
       <span id="diagOut">diagnostics…</span></p>
@@ -1411,6 +1426,36 @@ function buildBoard(){
   footer.appendChild(holdBlock);
 
   renderHolidays();
+  renderSwitchDays();
+}
+/* Days off around the bid change. New bid starts Sat 3 Jan with C shift.
+   Rotation is C,C,B,B,A,A, so running back: Jan 1-2 = A, Dec 30-31 = B,
+   Dec 28-29 = C. Last old-bid day and first new-bid day follow from that. */
+const switchRows = [
+  {from:"A", to:"C", last:"Jan 2",  first:"Jan 3", off:0, note:"works 4 straight, Jan 1-4"},
+  {from:"A", to:"B", last:"Jan 2",  first:"Jan 5", off:2, note:"off Jan 3-4"},
+  {from:"B", to:"C", last:"Dec 31", first:"Jan 3", off:2, note:"off Jan 1-2"},
+  {from:"",  to:"",  last:"\u2014", first:"\u2014", off:4, note:"staying put - normal 4 off"},
+  {from:"B", to:"A", last:"Dec 31", first:"Jan 7", off:6, note:"off Jan 1-6"},
+  {from:"C", to:"B", last:"Dec 29", first:"Jan 5", off:6, note:"off Dec 30 - Jan 4"},
+  {from:"C", to:"A", last:"Dec 29", first:"Jan 7", off:8, note:"off Dec 30 - Jan 6"}
+];
+function renderSwitchDays(){
+  const head = `<div class="swHead"><span class="swMove">Switch</span><span class="swLast">Last day</span>` +
+               `<span class="swFirst">First day</span><span class="swOff">Days off</span></div>`;
+  const rows = switchRows.map(r => {
+    const move = r.from
+      ? `<span class="s${r.from}">${r.from}</span><span class="swArrow"> \u2192 </span><span class="s${r.to}">${r.to}</span>`
+      : `<span style="color:var(--text-dim)">No change</span>`;
+    return `<div class="swRow${r.from ? '' : ' same'}"><span class="swMove">${move}</span>` +
+           `<span class="swLast">${r.last}</span><span class="swFirst">${r.first}</span>` +
+           `<span class="swOff">${r.off}</span><span class="hname" style="color:var(--text-dim)">${r.note}</span></div>`;
+  }).join('');
+  document.getElementById('swList').innerHTML =
+    `<div class="swNote">New bid starts <b>Sat Jan 3</b>, <span class="sC">C shift</span> day one. ` +
+    `Rotation <span class="sC">C</span> <span class="sB">B</span> <span class="sA">A</span> in two-day blocks.<br>` +
+    `Moving one shift earlier in the rotation costs 2 days off; two earlier costs 4. Moving later gains the same.</div>` +
+    head + rows;
 }
 function renderHolidays(){
   document.getElementById('holList').innerHTML = '<div id="holWrap">' + shifts.map(s => {
